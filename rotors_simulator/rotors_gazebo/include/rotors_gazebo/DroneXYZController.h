@@ -85,10 +85,13 @@ private:
     ros::Publisher control_pub_;
     ros::Subscriber odometry_sub_;
     ros::Publisher marker_pub;
+    ros::Timer marker_timer;
 
     void odometryCallback(const nav_msgs::OdometryConstPtr& msg);
     void controlLogic(double target_x_, double target_y_, 
         double target_z_, double target_yaw);
+
+    void publishMarkerCallback(const ros::TimerEvent&);
 };
 
 #endif // DRONE_CONTROLLER_H
