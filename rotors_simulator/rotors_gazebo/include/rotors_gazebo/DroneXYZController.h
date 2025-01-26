@@ -76,6 +76,7 @@ public:
     PID pid_z_vz, pid_vz_thrust;
     PID pid_vx_accx, pid_vy_accy;
     PID pid_y_vy, pid_x_vx;
+    PID pid_yaw_rate;
 
 private:
     rotors_control::EigenOdometry odometry_;
@@ -86,7 +87,8 @@ private:
     ros::Publisher marker_pub;
 
     void odometryCallback(const nav_msgs::OdometryConstPtr& msg);
-    void controlLogic(double target_x_, double target_y_, double target_z_);
+    void controlLogic(double target_x_, double target_y_, 
+        double target_z_, double target_yaw);
 };
 
 #endif // DRONE_CONTROLLER_H

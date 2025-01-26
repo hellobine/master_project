@@ -19,6 +19,7 @@ int main(int argc, char** argv) {
     drone_controller.pid_vy_accy.setGains(6.0, 0.01, 0.1);
     drone_controller.pid_y_vy.setGains(1, 0, 0.1);
     drone_controller.pid_x_vx.setGains(1, 0, 0.1);
+    drone_controller.pid_yaw_rate.setGains(1, 0, -0.1);
 
    std_srvs::Empty srv;
     bool unpaused = ros::service::call("/gazebo/unpause_physics", srv);

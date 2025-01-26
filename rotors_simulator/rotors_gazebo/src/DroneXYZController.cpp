@@ -9,7 +9,8 @@ DroneController::DroneController(ros::NodeHandle& nh, ros::NodeHandle& private_n
       pid_vx_accx(1.0, 0.0, 0.1),
       pid_vy_accy(1.0, 0.0, 0.1),
       pid_y_vy(1.0, 0.0, 0.1),
-      pid_x_vx(1.0, 0.0, 0.1) {
+      pid_x_vx(1.0, 0.0, 0.1),
+      pid_yaw_rate(1.0, 0.0, 0.1){
 
 
     target_x_=3;
@@ -78,11 +79,12 @@ void DroneController::run() {
     // nh_private.param("yaw", desired_yaw, desired_yaw);
 
     int target_index=0;
- 
+
     ros::Rate rate(10);
     while (ros::ok()) {
         marker_pub.publish(trajectory_marker);
-        controlLogic(trajectory[target_index].position.x(), trajectory[target_index].position.y(), trajectory[target_index].position.z());
+        controlLogic(trajectory[target_index].position.x(), trajectory[target_index].position.y(),
+         trajectory[target_index].position.z(), trajectory[target_index].yaw);
 
         target_index = target_index % trajectory.size() + 1;
         rate.sleep();
@@ -94,7 +96,8 @@ void DroneController::odometryCallback(const nav_msgs::OdometryConstPtr& msg) {
     rotors_control::eigenOdometryFromMsg(msg, &odometry_);
 }
 
-void DroneController::controlLogic(double target_x_, double target_y_, double target_z_) {
+void DroneController::controlLogic(double target_x_, double target_y_,
+ double target_z_, double target_yaw) {
     static ros::Time last_time = ros::Time::now();
     ros::Time current_time = ros::Time::now();
     double dt = 0.1;
@@ -109,6 +112,8 @@ void DroneController::controlLogic(double target_x_, double target_y_, double ta
     double vel_x_cur = odometry_.velocity.x();
     double vel_y_cur = odometry_.velocity.y();
     double vel_z_cur = odometry_.velocity.z();
+
+
 
     Eigen::Matrix3d R = odometry_.orientation.toRotationMatrix();
     double yaw = atan2(R(1, 0), R(0, 0));
@@ -127,6 +132,8 @@ void DroneController::controlLogic(double target_x_, double target_y_, double ta
     double b_acc_x_des = pid_vx_accx.calculate(b_vel_x_des, vel_x_cur, dt);
     double b_acc_y_des = pid_vy_accy.calculate(b_vel_y_des, vel_y_cur, dt);
 
+    double yaw_rate = pid_yaw_rate.calculate(target_yaw, yaw, dt);
+
     double des_pitch = b_acc_x_des*RADIAN;
     double des_roll = -b_acc_y_des*RADIAN;
 
@@ -134,10 +141,11 @@ void DroneController::controlLogic(double target_x_, double target_y_, double ta
     control_msg.thrust.z = thrust_z;
     control_msg.pitch = des_pitch;
     control_msg.roll = des_roll;
-
+    control_msg.yaw_rate = yaw_rate;
     control_pub_.publish(control_msg);
 
-    ROS_INFO_STREAM("cmd: [" << des_pitch << ", " << des_roll << ", " << thrust_z << "]");
-    ROS_INFO_STREAM("Velocity: [" << vel_x_cur << ", " << vel_y_cur << ", " << vel_z_cur << "]");
-    ROS_INFO_STREAM("pos: [" << pos_x_cur << ", " << pos_y_cur << ", " << pos_z_cur << "]");
+    // ROS_INFO_STREAM("cmd: [" << des_pitch << ", " << des_roll << ", " << thrust_z << "]");
+    // ROS_INFO_STREAM("Velocity: [" << vel_x_cur << ", " << vel_y_cur << ", " << vel_z_cur << "]");
+    // ROS_INFO_STREAM("pos: [" << pos_x_cur << ", " << pos_y_cur << ", " << pos_z_cur << "]");
+    ROS_INFO_STREAM("yaw: [" << yaw << ", target_yaw; " << target_yaw << "]");
 }
