@@ -17,12 +17,20 @@
 #include "rotors_control/common.h"
 #include <trajectory_msgs/MultiDOFJointTrajectory.h>
 #include <vector>
+#include <tf2/LinearMath/Quaternion.h>
+#include <Eigen/Dense>
+#include "minimum_jerk_trajectories/RapidTrajectoryGenerator.h"
+#include "quadrotor_common/trajectory.h"
+#include "quadrotor_msgs/Trajectory.h"
+#include "trajectory_generation_helper/acrobatic_sequence.h"
 
 
-struct TrajectoryPoint {
-    Eigen::Vector3d position;
-    double yaw;
-};
+using namespace quadrotor_common;
+
+// struct TrajectoryPoint {
+//     Eigen::Vector3d position;
+//     double yaw;
+// };
 
 // PID 控制器类
 class PID {
@@ -81,6 +89,7 @@ public:
 private:
     rotors_control::EigenOdometry odometry_;
     double target_x_, target_y_, target_z_;
+    std::vector<TrajectoryPoint> all_points;
 
     ros::Publisher control_pub_;
     ros::Subscriber odometry_sub_;
@@ -92,6 +101,8 @@ private:
         double target_z_, double target_yaw);
 
     void publishMarkerCallback(const ros::TimerEvent&);
+    void computeManeuver();
+    void publishTrajectoryMarkers();
 };
 
 #endif // DRONE_CONTROLLER_H

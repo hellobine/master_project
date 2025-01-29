@@ -28,5 +28,8 @@
   <depend>rotors_gazebo_plugins</depend>
   <depend>sensor_msgs</depend>
   <depend>xacro</depend>
+  <!-- <depend>minimum_jerk_trajectories</depend>
+    <depend>quadrotor_common</depend>
+  <depend>quadrotor_msgs</depend> -->
 
 </package>

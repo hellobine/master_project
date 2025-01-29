@@ -44,7 +44,8 @@ if(NO_ROS)
   return()
 endif()
 
-find_package(catkin REQUIRED COMPONENTS gazebo_msgs geometry_msgs mav_msgs roscpp sensor_msgs rotors_control)
+find_package(catkin REQUIRED COMPONENTS gazebo_msgs geometry_msgs mav_msgs 
+  roscpp sensor_msgs rotors_control minimum_jerk_trajectories quadrotor_common quadrotor_msgs trajectory_generation_helper)
 
 catkin_package(
   CATKIN_DEPENDS
@@ -58,6 +59,8 @@ catkin_package(
 include_directories(include ${catkin_INCLUDE_DIRS})
 include_directories(
     include/rotors_gazebo
+    include../../rotors_control/trajectory_generation_helper
+    # include/trajectory_generation_helper
     ${catkin_INCLUDE_DIRS}
 )
 
@@ -90,6 +93,8 @@ add_executable(pid_drone_xyz_controller
 target_link_libraries(pid_drone_xyz_controller ${catkin_LIBRARIES})
 add_dependencies(pid_drone_xyz_controller ${catkin_EXPORTED_TARGETS})
 
+# target_include_directories(pid_drone_xyz_controller PUBLIC
+#         ../../rotors_control/trajectory_generation_helper/include())
 
 foreach(dir launch models resource worlds)
    install(DIRECTORY ${dir}/
