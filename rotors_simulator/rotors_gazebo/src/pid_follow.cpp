@@ -35,14 +35,14 @@ struct PID {
 };
 
 // Control variables for Outer Loop (Position Control)
-PID pid_x(1.0, 0.0, 0.1); // PID for x-axis
-PID pid_y(1.0, 0.0, 0.1); // PID for y-axis
-PID pid_z(1.5, 0.0, 0.2); // PID for z-axis
+PID pid_x(3.0, 0.01, 0.1); // PID for x-axis
+PID pid_y(3.0, 0.01, 0.1); // PID for y-axis
+PID pid_z(3.5, 0.01, 0.2); // PID for z-axis
 
 // Control variables for Inner Loop (Attitude Control)
 PID pid_roll(2.0, 0.0, 0.1);   // PID for roll
 PID pid_pitch(2.0, 0.0, 0.1);  // PID for pitch
-PID pid_yaw(1.5, 0.0, 0.1);    // PID for yaw
+PID pid_yaw(3.5, 0.0, 0.1);    // PID for yaw
 
 struct TrajectoryPoint {
     Eigen::Vector3d position;

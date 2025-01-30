@@ -4,6 +4,7 @@
 #include <ros/ros.h>
 #include <mav_msgs/RollPitchYawrateThrust.h>
 #include <nav_msgs/Odometry.h>
+#include <std_msgs/Float64.h>
 #include <Eigen/Core>
 #include <iostream>
 #include <thread>
@@ -23,6 +24,8 @@
 #include "quadrotor_common/trajectory.h"
 #include "quadrotor_msgs/Trajectory.h"
 #include "trajectory_generation_helper/acrobatic_sequence.h"
+#include "trajectory_generation_helper/circle_trajectory_helper.h"
+#include "trajectory_generation_helper/heading_trajectory_helper.h"
 
 
 using namespace quadrotor_common;
@@ -86,6 +89,7 @@ public:
     PID pid_y_vy, pid_x_vx;
     PID pid_yaw_rate;
 
+
 private:
     rotors_control::EigenOdometry odometry_;
     double target_x_, target_y_, target_z_;
@@ -95,6 +99,9 @@ private:
     ros::Subscriber odometry_sub_;
     ros::Publisher marker_pub;
     ros::Timer marker_timer;
+    ros::Publisher yaw_pub;
+    ros::Publisher target_point_pub_;  // 目标点发布者
+
 
     void odometryCallback(const nav_msgs::OdometryConstPtr& msg);
     void controlLogic(double target_x_, double target_y_, 
@@ -103,6 +110,8 @@ private:
     void publishMarkerCallback(const ros::TimerEvent&);
     void computeManeuver();
     void publishTrajectoryMarkers();
+    void publishTargetPoint(const TrajectoryPoint& target_point);
+    
 };
 
 #endif // DRONE_CONTROLLER_H

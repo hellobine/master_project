@@ -55,6 +55,8 @@
     <node name="joint_state_publisher" pkg="joint_state_publisher" type="joint_state_publisher" />
 
     <node name="pid_drone_xyz_controller" pkg="rotors_gazebo" type="pid_drone_xyz_controller" output="screen"/>
+    <!-- <node pkg="rviz" type="rviz" name="viz_face" args="-d $(find rotors_gazebo)/resources/rviz/rviz.rviz"/> -->
+    <node name="rviz" pkg="rviz" type="rviz" args="-d $(find rotors_gazebo)/resource/rviz/rviz.rviz" output="screen" />
 
   </group>
 </launch>
