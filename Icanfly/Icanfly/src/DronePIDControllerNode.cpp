@@ -1,4 +1,4 @@
-#include "rotors_gazebo/DroneXYZController.h"
+#include "pid_controller/DronePIDController.h"
 
 #include <thread>
 #include <chrono>

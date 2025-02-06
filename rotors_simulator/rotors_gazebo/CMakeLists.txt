@@ -44,9 +44,10 @@ if(NO_ROS)
   return()
 endif()
 
-find_package(catkin REQUIRED COMPONENTS gazebo_msgs geometry_msgs mav_msgs 
-  roscpp sensor_msgs rotors_control minimum_jerk_trajectories quadrotor_common quadrotor_msgs trajectory_generation_helper)
-
+find_package(catkin REQUIRED COMPONENTS gazebo_msgs geometry_msgs mav_msgs
+  roscpp sensor_msgs rotors_control minimum_jerk_trajectories quadrotor_common 
+  quadrotor_msgs trajectory_generation_helper)
+  find_package(casadi REQUIRED)
 catkin_package(
   CATKIN_DEPENDS
     gazebo_msgs
@@ -59,9 +60,11 @@ catkin_package(
 include_directories(include ${catkin_INCLUDE_DIRS})
 include_directories(
     include/rotors_gazebo
-    include../../rotors_control/trajectory_generation_helper
+    # include../../rotors_control/trajectory_generation_helper
+    # include()
     # include/trajectory_generation_helper
     ${catkin_INCLUDE_DIRS}
+    ${CASADI_INCLUDE_DIRS}
 )
 
 add_executable(waypoint_publisher src/waypoint_publisher.cpp)
@@ -85,13 +88,21 @@ add_dependencies(run_circle_locus ${catkin_EXPORTED_TARGETS})
 # target_link_libraries(pid_drone_controller ${catkin_LIBRARIES})
 # add_dependencies(pid_drone_controller ${catkin_EXPORTED_TARGETS})
 
-add_executable(pid_drone_xyz_controller
-    src/DroneXYZControllerNode.cpp
-    src/DroneXYZController.cpp
-)
+# add_executable(pid_drone_xyz_controller
+#     src/DroneXYZControllerNode.cpp
+#     src/DroneXYZController.cpp
+#     src/mpc_controller.cpp  # 关键！添加此行
+# )
 
-target_link_libraries(pid_drone_xyz_controller ${catkin_LIBRARIES})
-add_dependencies(pid_drone_xyz_controller ${catkin_EXPORTED_TARGETS})
+# target_link_libraries(pid_drone_xyz_controller   ${CASADI_LIBRARIES} ${catkin_LIBRARIES})
+# add_dependencies(pid_drone_xyz_controller ${catkin_EXPORTED_TARGETS})
+
+# target_include_directories(pid_drone_xyz_controller PUBLIC
+#         ../../../rpg_mpc/model/quadrotor_mpc_codegen/
+#         ../../../rpg_mpc/externals/qpoases
+#         ../../../rpg_mpc/externals/qpoases/INCLUDE
+#         ../../../rpg_mpc/externals/qpoases/SRC)
+# ${CMAKE_SOURCE_DIR}/
 
 # target_include_directories(pid_drone_xyz_controller PUBLIC
 #         ../../rotors_control/trajectory_generation_helper/include())

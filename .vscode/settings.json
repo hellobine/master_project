@@ -59,6 +59,10 @@
           "stdexcept": "cpp",
           "streambuf": "cpp",
           "system_error": "cpp",
-          "thread": "cpp"
+          "thread": "cpp",
+          "regex": "cpp",
+          "unordered_set": "cpp",
+          "*.ipp": "cpp",
+          "dense": "cpp"
      }
 }

@@ -1,5 +1,5 @@
 // DroneController.cpp
-#include "rotors_gazebo/DroneXYZController.h"
+#include "pid_controller/DronePIDController.h"
 
 #define RADIAN M_PI / 180.0
 
@@ -33,7 +33,6 @@ void DroneController::computeManeuver() {
     //                point.bodyrates.y(), point.bodyrates.z());
   }
 }
-
 
 double convertGlobalYawToLocalYaw(double target_yaw, double current_yaw) {
     // 计算目标 yaw 相对当前 yaw 的偏差
@@ -115,7 +114,7 @@ void DroneController::run() {
     ros::Time start_time = ros::Time::now();
     size_t current_point_idx = 0;
 
-    ros::Rate rate(20);  // 控制频率（20Hz），可以根据实际情况调整
+    ros::Rate rate(10);  // 控制频率（20Hz），可以根据实际情况调整
     while (ros::ok()) {
         publishTrajectoryMarkers(); // 仅用于可视化，不影响控制
         
@@ -174,63 +173,6 @@ void DroneController::run() {
         ros::spinOnce();
     }
 }
-
-
-
-// void DroneController::run() {
-//     computeManeuver();  // 生成轨迹点
-    
-//     if (all_points.empty()) {
-//         ROS_ERROR("No trajectory points! Exiting...");
-//         return;
-//     }
-
-//     ros::Time start_time = ros::Time::now();
-//     size_t current_point_idx = 0;
-
-//     ros::Rate rate(10);  // 100Hz控制频率
-//     while (ros::ok()) {
-//         publishTrajectoryMarkers();
-//         ros::Time current_time = ros::Time::now();
-//         ros::Duration elapsed_time = current_time - start_time;
-
-//         // 寻找当前时间对应的轨迹点
-//         while (current_point_idx < all_points.size() && 
-//                all_points[current_point_idx].time_from_start <= elapsed_time) 
-//         {
-//             const auto& target_point = all_points[current_point_idx];
-//             double target_yaw = std::atan2(2.0 * (target_point.orientation.w() * target_point.orientation.z() +
-//                                target_point.orientation.x() * target_point.orientation.y()),
-//                         1.0 - 2.0 * (target_point.orientation.y() * target_point.orientation.y() +
-//                                      target_point.orientation.z() * target_point.orientation.z()));
-
-//             publishTargetPoint(target_point);
-//             // 发送控制指令
-//             controlLogic(target_point.position.x(),
-//                         target_point.position.y(),
-//                         target_point.position.z(),
-//                         target_yaw);
-
-//             // ROS_INFO_STREAM("target_yaw check: [target_yaw : " << target_yaw << "]");
-                
-            
-//             current_point_idx++;
-//         }
-
-//         // // 轨迹循环逻辑（可选）
-//         if (current_point_idx >= all_points.size()) {
-//             start_time = ros::Time::now();
-//             current_point_idx = 0;
-//             ROS_INFO("Restarting trajectory...");
-//             continue;
-//         }
-
-//         rate.sleep();
-//         ros::spinOnce();
-//     }
-// }
-
-
 
 void DroneController::odometryCallback(const nav_msgs::OdometryConstPtr& msg) {
     rotors_control::eigenOdometryFromMsg(msg, &odometry_);
@@ -296,8 +238,6 @@ void DroneController::controlLogic(double target_x_, double target_y_,
     // ROS_INFO_STREAM("pos: [" << pos_x_cur << ", " << pos_y_cur << ", " << pos_z_cur << "]");
     // ROS_INFO_STREAM("yaw: [" << yaw << ", target_local_yaw; " << target_local_yaw << "]");
 }
-
-
 
 void DroneController::publishTargetPoint(const TrajectoryPoint& target_point) {
     geometry_msgs::PoseStamped target_msg;
