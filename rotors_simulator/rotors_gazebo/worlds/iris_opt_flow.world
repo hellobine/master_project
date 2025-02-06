@@ -1,6 +1,6 @@
 <?xml version="1.0" ?>
 <sdf version="1.5">
-  <world name="default">
+  <world name="iris_opt_flow.world">
     <!-- A global light source -->
     <include>
       <uri>model://sun</uri>

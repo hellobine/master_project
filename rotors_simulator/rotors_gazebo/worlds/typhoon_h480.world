@@ -1,6 +1,6 @@
 <?xml version="1.0" ?>
 <sdf version="1.5">
-  <world name="default">
+  <world name="typhoon_h480">
     <!-- A global light source -->
     <include>
       <uri>model://sun</uri>

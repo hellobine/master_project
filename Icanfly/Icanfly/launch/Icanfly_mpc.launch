@@ -1,80 +1,154 @@
-
-<!-- 启动无人机仿真，带深度摄像头传感器 -->
-<!-- 参数： -->
-<!-- mav_name：无人机类型，可以在rotors_description/urdf中查看型号-->
-<!--           六翼无人机：firefly、neo11、neo9-->
-<!--           四翼无人机：pelican、ardrone、asymmetric_quadrotor、hummingbird、iris-->
-<!-- world_name：仿真环境，可选择worlds文件夹下的文件-->
-
-
+<?xml version="1.0"?>
 <launch>
-  <arg name="mav_name" default="hummingbird"/>
-  <arg name="world_name" default="basic"/>
-  <arg name="enable_logging" default="false" />
-  <arg name="enable_ground_truth" default="true" />
-  <arg name="log_file" default="$(arg mav_name)" />
-  <arg name="debug" default="false"/>
-  <arg name="gui" default="true"/>
-  <arg name="paused" default="true"/>
-  <!-- The following line causes gzmsg and gzerr messages to be printed to the console
-      (even when Gazebo is started through roslaunch) -->
-  <arg name="verbose" default="false"/>
 
-  <env name="GAZEBO_MODEL_PATH" value="${GAZEBO_MODEL_PATH}:$(find rotors_gazebo)/models"/>
+  <arg name="quad_name" default="hummingbird"/>
+  <arg name="world_name" value="$(find rotors_gazebo)/worlds/empty.world"/>
+    <arg name="paused" value="false"/>
+    <arg name="gui" value="true"/>
+  <arg name="use_ground_truth"  value="true"/>
+  <arg name="use_mpc" default="true"/>
+  <arg name="custom_models" default=""/>
+  <arg name="custom_plugins" default=""/>
+
+  <arg name="mav_name" value="$(arg quad_name)"/>
+  <arg name="model" value="$(find rotors_description)/urdf/mav_generic_odometry_sensor.gazebo"/>
+
+  <arg name="x_init" default="0.0"/>
+  <arg name="y_init" default="0.0"/>
+
+  <arg name="enable_logging" default="false"/>
+  <arg name="enable_ground_truth" default="true"/>
+  <arg name="enable_command_feedthrough" default="true"/>
+  <arg name="log_file" default="$(arg quad_name)"/>
+
+  <arg name="use_unity" default="true"/>
+  <arg name="verbose" default="false"/>
+  <arg name="debug" default="false"/>
+
+
+  <!-- Gazebo stuff to spawn the world !-->
+  <env name="GAZEBO_MODEL_PATH" value="${GAZEBO_MODEL_PATH}:$(find rotors_gazebo)/models:$(arg custom_models)"/>
+  <env name="GAZEBO_PLUGIN_PATH" value="${GAZEBO_PLUGIN_PATH}:$(arg custom_plugins)"/>
   <env name="GAZEBO_RESOURCE_PATH" value="${GAZEBO_RESOURCE_PATH}:$(find rotors_gazebo)/models"/>
   <include file="$(find gazebo_ros)/launch/empty_world.launch">
-    <arg name="world_name" value="$(find rotors_gazebo)/worlds/$(arg world_name).world" />
+    <arg name="world_name" value="$(arg world_name)" />
     <arg name="debug" value="$(arg debug)" />
     <arg name="paused" value="$(arg paused)" />
     <arg name="gui" value="$(arg gui)" />
     <arg name="verbose" value="$(arg verbose)"/>
   </include>
 
+  <!-- RotorS stuff to spawn the quadrotor !-->
+  <!--启动一个四旋翼模型，传入飞行器名称、模型文件、位置初始化参数（x_init, y_init）等。-->
   <group ns="$(arg mav_name)">
     <include file="$(find rotors_gazebo)/launch/spawn_mav.launch">
       <arg name="mav_name" value="$(arg mav_name)" />
-      <arg name="model" value="$(find rotors_description)/urdf/mav_generic_odometry_sensor.gazebo" />
+      <arg name="model" value="$(arg model)" />
       <arg name="enable_logging" value="$(arg enable_logging)" />
       <arg name="enable_ground_truth" value="$(arg enable_ground_truth)" />
       <arg name="log_file" value="$(arg log_file)"/>
+      <arg name="x" value="$(arg x_init)" />
+      <arg name="y" value="$(arg y_init)" />
     </include>
-    <node name="lee_position_controller_node" pkg="rotors_control" type="lee_position_controller_node" output="screen">
-      <rosparam command="load" file="$(find rotors_gazebo)/resource/lee_controller_$(arg mav_name).yaml" />
-      <rosparam command="load" file="$(find rotors_gazebo)/resource/$(arg mav_name).yaml" />
-      <remap from="odometry" to="odometry_sensor1/odometry" />
+  </group>
+
+  <!-- RPG stuff !-->
+  <group ns="$(arg quad_name)">
+
+    <group if="$(arg use_ground_truth)">
+      <node pkg="rpg_rotors_interface" type="rpg_rotors_interface" name="rpg_rotors_interface" output="screen">
+        <rosparam file="$(find rpg_rotors_interface)/parameters/rpg_rotors_interface.yaml" />
+
+        <remap from="odometry" to="ground_truth/odometry" />
+        <remap from="rpg_rotors_interface/arm" to="bridge/arm" />
+      </node>
+
+      <!-- Autopilot -->
+      <group unless="$(arg use_mpc)">
+        <node pkg="autopilot" type="autopilot" name="autopilot" output="screen">
+          <rosparam file="$(find state_predictor)/parameters/hummingbird.yaml" />
+          <rosparam file="$(find rpg_rotors_interface)/parameters/position_controller.yaml" />
+          <rosparam file="$(find rpg_rotors_interface)/parameters/autopilot.yaml" />
+
+          <param name="position_controller/use_rate_mode" value="True" />
+
+          <param name="velocity_estimate_in_world_frame" value="false" />
+          <param name="state_estimate_timeout" value="0.1" />
+          <param name="control_command_delay" value="0.05" />
+          <param name="enable_command_feedthrough" value="$(arg enable_command_feedthrough)" />
+
+          <remap from="autopilot/state_estimate" to="ground_truth/odometry" />
+        </node>
+      </group>
+      <group if="$(arg use_mpc)">
+        <node pkg="rpg_mpc" type="autopilot_mpc_instance" name="autopilot" output="screen">
+          <rosparam file="$(find state_predictor)/parameters/hummingbird.yaml" />
+          <rosparam file="$(find rpg_mpc)/parameters/default.yaml" />
+          <rosparam file="$(find rpg_rotors_interface)/parameters/autopilot.yaml" />
+
+          <param name="velocity_estimate_in_world_frame" value="false" />
+          <param name="state_estimate_timeout" value="0.1" />
+          <param name="control_command_delay" value="0.05" />
+          <param name="enable_command_feedthrough" value="$(arg enable_command_feedthrough)" />
+
+          <remap from="autopilot/state_estimate" to="ground_truth/odometry" />
+        </node>
+      </group>
+    </group>
+
+    <group unless="$(arg use_ground_truth)">
+      <node pkg="rpg_rotors_interface" type="rpg_rotors_interface" name="rpg_rotors_interface" output="screen">
+        <rosparam file="$(find rpg_rotors_interface)/parameters/rpg_rotors_interface.yaml" />
+
+        <remap from="odometry" to="odometry_sensor1/odometry" />
+        <remap from="rpg_rotors_interface/arm" to="bridge/arm" />
+      </node>
+
+      <!-- Autopilot -->
+      <group unless="$(arg use_mpc)">
+        <node pkg="autopilot" type="autopilot" name="autopilot" output="screen">
+          <rosparam file="$(find state_predictor)/parameters/hummingbird.yaml" />
+          <rosparam file="$(find rpg_rotors_interface)/parameters/position_controller.yaml" />
+          <rosparam file="$(find rpg_rotors_interface)/parameters/autopilot.yaml" />
+
+          <param name="position_controller/use_rate_mode" value="True" />
+
+          <param name="velocity_estimate_in_world_frame" value="false" />
+          <param name="state_estimate_timeout" value="0.1" />
+          <param name="control_command_delay" value="0.05" />
+
+          <remap from="autopilot/state_estimate" to="odometry_sensor1/odometry" />
+        </node>
+      </group>
+      <group if="$(arg use_mpc)">
+        <node pkg="rpg_mpc" type="autopilot_mpc_instance" name="autopilot" output="screen">
+          <rosparam file="$(find state_predictor)/parameters/hummingbird.yaml" />
+          <rosparam file="$(find rpg_mpc)/parameters/default.yaml" />
+          <rosparam file="$(find rpg_rotors_interface)/parameters/autopilot.yaml" />
+
+          <param name="velocity_estimate_in_world_frame" value="false" />
+          <param name="state_estimate_timeout" value="0.1" />
+          <param name="control_command_delay" value="0.05" />
+
+          <remap from="autopilot/state_estimate" to="odometry_sensor1/odometry" />
+        </node>
+      </group>
+    </group>
+
+    <node pkg="joy" type="joy_node" name="joy_node">
+      <param name="autorepeat_rate" value="10"/>
     </node>
-    <node name="roll_pitch_yawrate_thrust_controller_node" pkg="rotors_control" type="roll_pitch_yawrate_thrust_controller_node" output="screen">
-      <rosparam
-        command="load" file="$(find rotors_gazebo)/resource/roll_pitch_yawrate_thrust_controller_$(arg mav_name).yaml" />
-      <rosparam command="load" file="$(find rotors_gazebo)/resource/$(arg mav_name).yaml" />
-      <remap from="odometry" to="odometry_sensor1/odometry" />
+
+    <node pkg="manual_flight_assistant" type="manual_flight_assistant" name="manual_flight_assistant" output="screen">
+      <rosparam file="$(find rpg_rotors_interface)/parameters/manual_flight_assistant.yaml"/>
     </node>
 
-
-
-        <!-- <group unless="$(arg use_ground_truth)"> -->
-    <node pkg="rpg_mpc" type="autopilot_mpc_instance" name="autopilot" output="screen"/>
-
-
-        <!-- </group> -->
-
-    <!-- <node name="hovering_example" pkg="rotors_gazebo" type="hovering_example" output="screen"/> -->
-    <node name="robot_state_publisher" pkg="robot_state_publisher" type="robot_state_publisher" />
-    <node name="joint_state_publisher" pkg="joint_state_publisher" type="joint_state_publisher" />
-
-    <node name="drone_mpc_controller" pkg="Icanfly" type="drone_mpc_controller" output="screen">
-        <rosparam file="$(find state_predictor)/parameters/hummingbird.yaml"/>
-        <rosparam file="$(find rpg_mpc)/parameters/default.yaml"/>
-        <rosparam file="$(find rpg_rotors_interface)/parameters/autopilot.yaml"/>
-        <param name="velocity_estimate_in_world_frame" value="false"/>
-        <param name="state_estimate_timeout" value="0.1"/>
-        <param name="control_command_delay" value="0.05"/>
-        <remap from="control_command" to="control_command_label"/>
-        <remap from="autopilot/state_estimate" to="odometry_converted_gt"/>
-    </node>
-    <!-- <node name="rpg_mpc" pkg="rpg_mpc" type="rpg_mpc" output="screen"/> -->
-    <!-- <node pkg="rviz" type="rviz" name="viz_face" args="-d $(find rotors_gazebo)/resources/rviz/rviz.rviz"/> -->
+    <node name="rqt_quad_gui" pkg="rqt_gui" type="rqt_gui" args="-s rqt_quad_gui.basic_flight.BasicFlight --args 
+        --quad_name $(arg quad_name)" output="screen"/>
+      <!-- <node pkg="rviz" type="rviz" name="viz_face" args="-d $(find rotors_gazebo)/resources/rviz/rviz.rviz"/> -->
     <node name="rviz" pkg="rviz" type="rviz" args="-d $(find rotors_gazebo)/resource/rviz/rviz.rviz" output="screen" />
 
+
   </group>
+
 </launch>
