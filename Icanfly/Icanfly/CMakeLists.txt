@@ -1,5 +1,5 @@
 cmake_minimum_required(VERSION 2.8.3)
-project(Icanfly)
+project(icanfly)
 
 add_definitions(-std=c++14)
 
@@ -21,11 +21,13 @@ find_package(catkin REQUIRED COMPONENTS gazebo_msgs geometry_msgs mav_msgs
   quadrotor_msgs 
   trajectory_generation_helper 
   rpg_mpc
+  autopilot
 )
 
 find_package(casadi REQUIRED)
 
 catkin_package(
+  INCLUDE_DIRS include
   CATKIN_DEPENDS
     gazebo_msgs
     geometry_msgs
@@ -36,6 +38,7 @@ catkin_package(
 
 include_directories(include ${catkin_INCLUDE_DIRS})
 include_directories(
+    include/autopilot_helper
     include/mpc_controller
     include/pid_controller
     include/quadrotor_mpc_codegen
@@ -77,10 +80,15 @@ add_library(PIDController
 add_library(MPCController
   src/DroneMPCController.cpp
 )
+add_library(autopilot_helper
+  src/autopilot_helper.cpp
+)
+
+
 
 ## 连接 ROS 依赖
-target_link_libraries(PIDController MPCController ${catkin_LIBRARIES})
-add_dependencies(PIDController MPCController ${catkin_EXPORTED_TARGETS})
+target_link_libraries(PIDController MPCController autopilot_helper ${catkin_LIBRARIES})
+add_dependencies(PIDController MPCController autopilot_helper ${catkin_EXPORTED_TARGETS})
 
 add_executable(pid_drone_controller src/DronePIDControllerNode.cpp)
 target_link_libraries(pid_drone_controller PIDController ${catkin_LIBRARIES})
@@ -89,6 +97,10 @@ add_dependencies(pid_drone_controller ${catkin_EXPORTED_TARGETS})
 add_executable(drone_mpc_controller src/DroneMPCControllerNode.cpp)
 target_link_libraries(drone_mpc_controller MPCController ${catkin_LIBRARIES} /usr/local/lib/libcasadi.so)
 add_dependencies(drone_mpc_controller ${catkin_EXPORTED_TARGETS})
+
+add_executable(fly_10_turn_experience_node src/fly_10_turn_experience.cpp)
+target_link_libraries(fly_10_turn_experience_node autopilot_helper ${catkin_LIBRARIES})
+add_dependencies(fly_10_turn_experience_node ${catkin_EXPORTED_TARGETS})
 
 
 

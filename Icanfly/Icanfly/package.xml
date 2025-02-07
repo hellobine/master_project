@@ -1,5 +1,5 @@
 <package format="2">
-  <name>Icanfly</name>
+  <name>icanfly</name>
   <version>2.2.3</version>
   <description>The rotors_gazebo package</description>
 
@@ -30,6 +30,8 @@
   <depend>sensor_msgs</depend>
   <depend>casadi</depend>
   <depend>rpg_mpc</depend>
+    <depend>autopilot</depend>
+
   <!-- <depend>rpg_quadrotor_control</depend> -->
   
   <!-- <depend>rpg_mpc</depend> -->

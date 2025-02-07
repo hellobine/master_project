@@ -133,6 +133,7 @@
           <remap from="autopilot/state_estimate" to="odometry_sensor1/odometry" />
         </node>
       </group>
+
     </group>
 
     <node pkg="joy" type="joy_node" name="joy_node">
@@ -147,6 +148,8 @@
         --quad_name $(arg quad_name)" output="screen"/>
       <!-- <node pkg="rviz" type="rviz" name="viz_face" args="-d $(find rotors_gazebo)/resources/rviz/rviz.rviz"/> -->
     <node name="rviz" pkg="rviz" type="rviz" args="-d $(find rotors_gazebo)/resource/rviz/rviz.rviz" output="screen" />
+
+    <node name="fly_10_turn_experience_node" pkg="icanfly" type="fly_10_turn_experience_node"  output="screen" />
 
 
   </group>

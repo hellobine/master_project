@@ -111,6 +111,7 @@ class AutoPilotHelper {
 
   // Constants
   static constexpr double kFeedbackValidTimeout_ = 2.0;
+
 };
 
 }  // namespace autopilot_helper

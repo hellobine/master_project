@@ -1,4 +1,4 @@
-#include "autopilot/autopilot_helper.h"
+#include "autopilot_helper/autopilot_helper.h"
 
 #include <geometry_msgs/PoseStamped.h>
 #include <geometry_msgs/TwistStamped.h>
@@ -15,25 +15,32 @@ AutoPilotHelper::AutoPilotHelper(const ros::NodeHandle& nh,
                                  const ros::NodeHandle& pnh)
     : autopilot_feedback_(),
       first_autopilot_feedback_received_(false),
-      time_last_feedback_received_() {
+      time_last_feedback_received_(),nh_(nh),pnh_(pnh) {
   pose_pub_ =
       nh_.advertise<geometry_msgs::PoseStamped>("autopilot/pose_command", 1);
+      
   velocity_pub_ = nh_.advertise<geometry_msgs::TwistStamped>(
       "autopilot/velocity_command", 1);
+
   reference_state_pub_ = nh_.advertise<quadrotor_msgs::TrajectoryPoint>(
       "autopilot/reference_state", 1);
+
   trajectory_pub_ =
       nh_.advertise<quadrotor_msgs::Trajectory>("autopilot/trajectory", 1);
+
   control_command_input_pub_ = nh_.advertise<quadrotor_msgs::ControlCommand>(
       "autopilot/control_command_input", 1);
 
   start_pub_ = nh_.advertise<std_msgs::Empty>("autopilot/start", 1);
+
   force_hover_pub_ = nh_.advertise<std_msgs::Empty>("autopilot/force_hover", 1);
+
   land_pub_ = nh_.advertise<std_msgs::Empty>("autopilot/land", 1);
+
   off_pub_ = nh_.advertise<std_msgs::Empty>("autopilot/off", 1);
 
   autopilot_feedback_sub_ =
-      nh_.subscribe("autopilot/feedback", 10,
+      nh_.subscribe("/hummingbird/autopilot/feedback", 1,
                     &AutoPilotHelper::autopilotFeedbackCallback, this);
 }
 
@@ -278,6 +285,7 @@ void AutoPilotHelper::sendOff() const { off_pub_.publish(std_msgs::Empty()); }
 void AutoPilotHelper::autopilotFeedbackCallback(
     const quadrotor_msgs::AutopilotFeedback::ConstPtr& msg) {
   time_last_feedback_received_ = ros::Time::now();
+  //  ROS_WARN_THROTTLE(5, "aaaaaaaaa HOVER state...");
 
   autopilot_feedback_ = *msg;
 

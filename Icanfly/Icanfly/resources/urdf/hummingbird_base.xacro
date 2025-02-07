@@ -21,10 +21,10 @@
 
 <robot name="hummingbird" xmlns:xacro="http://ros.org/wiki/xacro">
   <!-- xacro:include filename="$(find rotors_description)/urdf/component_snippets.xacro" / -->
-  <xacro:include filename="$(find Icanfly)/resources/urdf/component_snippets.xacro" />
+  <xacro:include filename="$(find icanfly)/resources/urdf/component_snippets.xacro" />
   <!-- Instantiate hummingbird "mechanics" -->
 <!--  <xacro:include filename="$(find rotors_description)/urdf/hummingbird.xacro" />-->
-  <xacro:include filename="$(find Icanfly)/resources/urdf/hummingbird.xacro" />
+  <xacro:include filename="$(find icanfly)/resources/urdf/hummingbird.xacro" />
 
   <!-- Instantiate a controller. -->
   <xacro:controller_plugin_macro namespace="${namespace}" imu_sub_topic="imu" />
