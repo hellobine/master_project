@@ -8,6 +8,15 @@
           "/opt/ros/noetic/lib/python3/dist-packages"
      ],
      "files.associations": {
-          "*.ipp": "cpp"
+          "*.ipp": "cpp",
+          "string": "cpp",
+          "array": "cpp",
+          "deque": "cpp",
+          "forward_list": "cpp",
+          "list": "cpp",
+          "vector": "cpp",
+          "string_view": "cpp",
+          "span": "cpp",
+          "core": "cpp"
      }
 }

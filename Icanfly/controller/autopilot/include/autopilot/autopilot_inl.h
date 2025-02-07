@@ -282,30 +282,8 @@ void AutoPilot<Tcontroller, Tparams>::goToPoseThread() {
 
         // Main mutex is unlocked because it goes out of scope here
       } else {
-//----------------------------8 zi trajectory-----------------------------------
-        // Eigen::VectorXd initial_segment_times(1);
-        // initial_segment_times << 10.0; // 8 字轨迹一圈 4 秒
 
-        // Eigen::VectorXd minimization_weights(4);
-        // minimization_weights << 0.0, 0.0, 100.0, 100.0;  // 最小 Snap
-
-        // polynomial_trajectories::PolynomialTrajectorySettings trajectory_settings;
-        // trajectory_settings.minimization_weights = minimization_weights;
-        // trajectory_settings.polynomial_order = 9;
-        // trajectory_settings.continuity_order = 4;
-
-        // double sampling_frequency = 50.0; 
-
-        // Eigen::Vector3d center(0.0, 0.0, 2.0);
-        // double radius_x = 3.0;
-        // double radius_z = 1.5;
-
-        // quadrotor_common::Trajectory go_to_pose_traj =
-        //     trajectory_generation_helper::polynomials::generateFigureEightTrajectory(initial_segment_times, trajectory_settings,
-        //                                   go_to_pose_max_velocity_, go_to_pose_max_normalized_thrust_, go_to_pose_max_roll_pitch_rate_,
-        //                                   sampling_frequency, center, radius_x, radius_z);
-
-                                          
+                                                  
 //-----------------------------圆 trajectory----------------------------------
         double radius = 5.0;  // 圆半径
         int num_waypoints = 10;  // 10 个关键航点
@@ -314,6 +292,18 @@ void AutoPilot<Tcontroller, Tparams>::goToPoseThread() {
             double theta = 2 * M_PI * i / num_waypoints;  // 角度
             waypoints.emplace_back(radius * cos(theta), radius * sin(theta), 3.0);
         }
+
+        // // 生成8字轨迹航点（Lissajous曲线）
+        // for (int i = 0; i < num_waypoints; ++i) {
+        //     double theta = 2 * M_PI * i / num_waypoints;
+            
+        //     // 8字参数方程
+        //     double x = radius * sin(theta);                   // X轴运动
+        //     double y = 2 * radius * sin(2*theta); // Y轴运动（相位差形成8字）
+        //     double z = 3*cos(theta);                                   // 固定高度
+            
+        //     waypoints.emplace_back(x, y, z);
+        // }
 
         // go_to_pose_max_velocity_=9.0;
         // 设置优化参数
@@ -371,6 +361,7 @@ void AutoPilot<Tcontroller, Tparams>::goToPoseThread() {
 
         // trajectory_generation_helper::heading::addConstantHeadingRate(
         //     start_state.heading, end_state.heading, &go_to_pose_traj);
+//-----------------------------------------------------------------------------------
 
         if (go_to_pose_traj.trajectory_type !=
             quadrotor_common::Trajectory::TrajectoryType::UNDEFINED) {
@@ -406,6 +397,7 @@ void AutoPilot<Tcontroller, Tparams>::goToPoseThread() {
   }
 }
 
+
 template <typename Tcontroller, typename Tparams>
 void AutoPilot<Tcontroller, Tparams>::publishTrajectoryMarkers(const quadrotor_common::Trajectory& reference_trajectory) {
     
@@ -439,14 +431,15 @@ void AutoPilot<Tcontroller, Tparams>::publishTrajectoryMarkers(const quadrotor_c
     // ROS_INFO_STREAM("[ I am pub trajectory!!!!!!!!!!!!!!!!!!!!!!! ]");
 }
 
-
+// all command is pub in there
 template <typename Tcontroller, typename Tparams>
-void AutoPilot<Tcontroller, Tparams>::stateEstimateCallback(
-    const nav_msgs::Odometry::ConstPtr& msg) {
+void AutoPilot<Tcontroller, Tparams>::stateEstimateCallback(const nav_msgs::Odometry::ConstPtr& msg) {
+  
+  //析构函数,如果调用过析构函数，则退出回调函数，不做任何操作    
   if (destructor_invoked_) {
     return;
   }
-
+  //判断自上次控制命令计算以来的时间是否小于最小控制周期（min_control_period_comp_）。如果是，则跳过本次回调，避免频繁计算控制命令。
   if ((ros::Time::now() - time_last_control_command_computed_).toSec() <
       min_control_period_comp_) {
     return;
@@ -454,6 +447,7 @@ void AutoPilot<Tcontroller, Tparams>::stateEstimateCallback(
 
   time_last_control_command_computed_ = ros::Time::now();
 
+  //加锁 
   std::lock_guard<std::mutex> main_lock(main_mutex_);
 
   received_state_est_ = quadrotor_common::QuadStateEstimate(*msg);
@@ -474,6 +468,7 @@ void AutoPilot<Tcontroller, Tparams>::stateEstimateCallback(
         received_state_est_.bodyrates.x(), received_state_est_.bodyrates.y(),
         received_state_est_.bodyrates.z());
     state_estimate_available_ = false;
+
     if (autopilot_state_ != States::OFF) {
       // Do not run control loop if state estimate is not valid
       // Only allow OFF state without a valid state estimate
@@ -590,8 +585,8 @@ void AutoPilot<Tcontroller, Tparams>::stateEstimateCallback(
 }
 
 template <typename Tcontroller, typename Tparams>
-void AutoPilot<Tcontroller, Tparams>::lowLevelFeedbackCallback(
-    const quadrotor_msgs::LowLevelFeedback::ConstPtr& msg) {
+void AutoPilot<Tcontroller, Tparams>::lowLevelFeedbackCallback(const quadrotor_msgs::LowLevelFeedback::ConstPtr& msg) {
+  //析构函数,如果调用过析构函数，则退出回调函数，不做任何操作
   if (destructor_invoked_) {
     return;
   }

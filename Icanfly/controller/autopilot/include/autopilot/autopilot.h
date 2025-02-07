@@ -25,6 +25,7 @@
 #include <visualization_msgs/Marker.h>
 #include "autopilot/autopilot_states.h"
 
+
 namespace autopilot {
 
 template <typename Tcontroller, typename Tparams>
@@ -78,6 +79,8 @@ class AutoPilot {
       const quadrotor_common::QuadStateEstimate& state_estimate,
       ros::Duration* trajectory_execution_left_duration,
       int* trajectories_left_in_queue);
+
+
 
   void setAutoPilotState(const States& new_state);
   void setAutoPilotStateForced(const States& new_state);
@@ -234,7 +237,7 @@ class AutoPilot {
   static constexpr double kGoToPoseIdleFrequency_ = 50.0;
   static constexpr double kGoToPoseTrajectorySamplingFrequency_ = 50.0;
   static constexpr int kGoToPosePolynomialOrderOfContinuity_ = 5;
-  static constexpr double kGoToPoseNeglectThreshold_ = 0.05;
+  static constexpr double kGoToPoseNeglectThreshold_ = 0.001;
   static constexpr double kThrustHighThreshold_ = 0.5;
 };
 
