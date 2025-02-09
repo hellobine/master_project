@@ -25,7 +25,7 @@ int main(int argc, char** argv) {
   ros::NodeHandle private_nh("~");
 
   autopilot_helper::AutoPilotHelper autopilot_helper(nh, private_nh);
-  marker_pub = nh.advertise<visualization_msgs::Marker>("visualization_marker", 1, true);
+  marker_pub = nh.advertise<visualization_msgs::Marker>("visualization_marker", 10, true);
  
   visualization_msgs::Marker marker;
   marker.header.frame_id = "world";  // 适配你的坐标系
@@ -103,12 +103,15 @@ int main(int argc, char** argv) {
       point.pose.position.x = pos_sample[0];
       point.pose.position.y = pos_sample[1];
       point.pose.position.z = pos_sample[2];
+      
+      if(i==1){
+        geometry_msgs::Point rviz_point;
+        rviz_point.x = pos_sample[0];
+        rviz_point.y = pos_sample[1];
+        rviz_point.z = pos_sample[2];
+        marker.points.push_back(rviz_point);
+      }
 
-      geometry_msgs::Point rviz_point;
-      rviz_point.x = pos_sample[0];
-      rviz_point.y = pos_sample[1];
-      rviz_point.z = pos_sample[2];
-      marker.points.push_back(rviz_point);
 
       // 计算 heading
       if (j < num_samples_per_segment) {
@@ -143,13 +146,19 @@ int main(int argc, char** argv) {
   // 发布轨迹到 RViz
   marker_pub.publish(marker);
 
+  int flag=0;
+
   // 等待 autopilot 进入 HOVER 状态
   ros::Rate rate(10); // 每秒检查 10 次
   while (ros::ok()) {
 
     if (autopilot_helper.getCurrentAutopilotState() == autopilot::States::HOVER) {
         ROS_INFO("Autopilot is now in HOVER state. Proceeding...");
-        autopilot_helper.sendTrajectory(traj_msg);
+        if(flag==0){
+          autopilot_helper.sendTrajectory(traj_msg);
+          flag+=1;
+          ROS_INFO("send one time!!");
+        }
         ROS_INFO("10 圈 8 字形立体轨迹已发送");
     }
     ros::spinOnce();  // **保持 ROS 事件循环，防止节点退出**

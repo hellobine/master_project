@@ -753,15 +753,15 @@ void AutoPilot<Tcontroller, Tparams>::trajectoryCallback(
       return;
     }
     // Check if there is a jump in the beginning of the trajectory
-    // if ((reference_state_.position -
-    //      quadrotor_common::geometryToEigen(msg->points[0].pose.position))
-    //         .norm() > kPositionJumpTolerance_) {
-    //   ROS_WARN(
-    //       "[%s]11  First received trajectory segment does not start at current "
-    //       "position, will ignore trajectory",
-    //       pnh_.getNamespace().c_str());
-    //   return;
-    // }
+    if ((reference_state_.position -
+         quadrotor_common::geometryToEigen(msg->points[0].pose.position))
+            .norm() > kPositionJumpTolerance_) {
+      ROS_WARN(
+          "[%s]11  First received trajectory segment does not start at current "
+          "position, will ignore trajectory",
+          pnh_.getNamespace().c_str());
+      return;
+    }
   } else {
     // Check that there is no jump from the last trajectory in the queue to the
     // newly received one
