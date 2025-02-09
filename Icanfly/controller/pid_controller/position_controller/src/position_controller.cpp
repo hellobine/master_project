@@ -4,7 +4,9 @@
 
 namespace position_controller {
 
-PositionController::PositionController() {}
+PositionController::PositionController() {
+
+}
 
 PositionController::~PositionController() {}
 
@@ -81,44 +83,11 @@ quadrotor_common::ControlCommand PositionController::run(
 
   command.angular_accelerations = reference_inputs.angular_accelerations;
 
-  // publishTrajectoryMarkers(reference_trajectory);
+  // publishTrajectoryMarkers(reference_state);
 
   return command;
 }
 
-
-
-// void PositionController::publishTrajectoryMarkers(const quadrotor_common::Trajectory& reference_trajectory) {
-    
-//     marker.header.frame_id = "world";
-//     marker.header.stamp = ros::Time::now();
-//     marker.ns = "computed_trajectory";
-//     marker.id = 0;
-//     marker.type = visualization_msgs::Marker::POINTS;
-//     marker.action = visualization_msgs::Marker::ADD;
-//     marker.scale.x = 0.1;
-//     marker.scale.y = 0.1;
-//     marker.color.r = 0.0;
-//     marker.color.g = 0.0;
-//     marker.color.b = 2.0;
-//     marker.color.a = 1.0;
-
-//         // Debugging: Check if the trajectory has points
-//     if (reference_trajectory.points.empty()) {
-//         ROS_WARN_STREAM("Trajectory is empty!");
-//         return;
-//     }
-
-//     for (const auto& point : reference_trajectory.points) {
-//         geometry_msgs::Point p;
-//         p.x = point.position.x();
-//         p.y = point.position.y();
-//         p.z = point.position.z();
-//         marker.points.push_back(p);
-//     }
-//     // 
-//     // ROS_INFO_STREAM("[ I am pub trajectory!!!!!!!!!!!!!!!!!!!!!!! ]");
-// }
 
 
 quadrotor_common::ControlCommand

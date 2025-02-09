@@ -13,6 +13,7 @@ Panels:
         - /Odometry1
         - /Path1
         - /Path1/Offset1
+        - /Pose2
       Splitter Ratio: 0.5
     Tree Height: 1245
   - Class: rviz/Selection
@@ -107,7 +108,7 @@ Visualization Manager:
       Marker Topic: /hummingbird/visualization_marker
       Name: Marker
       Namespaces:
-        computed_trajectory: true
+        trajectory: true
       Queue Size: 100
       Value: true
     - Angle Tolerance: 0.10000000149011612
@@ -127,7 +128,7 @@ Visualization Manager:
           Scale: 1
           Value: true
         Value: true
-      Enabled: true
+      Enabled: false
       Keep: 100
       Name: Odometry
       Position Tolerance: 0.10000000149011612
@@ -144,12 +145,12 @@ Visualization Manager:
         Value: Arrow
       Topic: /hummingbird/ground_truth/odometry
       Unreliable: false
-      Value: true
+      Value: false
     - Alpha: 1
       Buffer Length: 1
       Class: rviz/Path
       Color: 255; 0; 0
-      Enabled: true
+      Enabled: false
       Head Diameter: 0.30000001192092896
       Head Length: 0.20000000298023224
       Length: 0.30000001192092896
@@ -167,6 +168,22 @@ Visualization Manager:
       Shaft Diameter: 0.10000000149011612
       Shaft Length: 0.10000000149011612
       Topic: /hummingbird/mpc/trajectory_predicted
+      Unreliable: false
+      Value: false
+    - Alpha: 1
+      Axes Length: 1
+      Axes Radius: 0.10000000149011612
+      Class: rviz/Pose
+      Color: 25; 255; 0
+      Enabled: true
+      Head Length: 0.30000001192092896
+      Head Radius: 0.10000000149011612
+      Name: Pose
+      Queue Size: 10
+      Shaft Length: 1
+      Shaft Radius: 0.05000000074505806
+      Shape: Axes
+      Topic: /hummingbird/autopilot/reference_tracking_point
       Unreliable: false
       Value: true
   Enabled: true
@@ -197,7 +214,7 @@ Visualization Manager:
   Views:
     Current:
       Class: rviz/Orbit
-      Distance: 24.40822410583496
+      Distance: 12.332514762878418
       Enable Stereo Rendering:
         Stereo Eye Separation: 0.05999999865889549
         Stereo Focal Distance: 1
@@ -213,9 +230,9 @@ Visualization Manager:
       Invert Z Axis: false
       Name: Current View
       Near Clip Distance: 0.009999999776482582
-      Pitch: 0.7453975677490234
+      Pitch: 1.2197970151901245
       Target Frame: <Fixed Frame>
-      Yaw: 2.648562431335449
+      Yaw: 5.329892158508301
     Saved: ~
 Window Geometry:
   Displays:

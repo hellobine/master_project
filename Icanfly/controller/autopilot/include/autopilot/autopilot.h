@@ -60,6 +60,11 @@ class AutoPilot {
   void landCallback(const std_msgs::Empty::ConstPtr& msg);
   void offCallback(const std_msgs::Empty::ConstPtr& msg);
   void reloadParamsCallback(const std_msgs::Empty::ConstPtr& msg);
+  
+  //add by ypw
+  void publishTrackingTrajectory();
+  void publishReferenceState();
+
 
   quadrotor_common::ControlCommand start(
       const quadrotor_common::QuadStateEstimate& state_estimate);
@@ -140,6 +145,10 @@ class AutoPilot {
 
   ros::Publisher marker_pub_;
   visualization_msgs::Marker marker;
+
+
+  ros::Publisher trajectory_pub_;  // 轨迹发布
+  ros::Publisher tracking_point_pub_;  // 当前跟踪点发布
 
 
   state_predictor::StatePredictor state_predictor_;
@@ -230,7 +239,7 @@ class AutoPilot {
 
   // Constants
   static constexpr double kVelocityCommandZeroThreshold_ = 0.03;
-  static constexpr double kPositionJumpTolerance_ = 0.5;
+  static constexpr double kPositionJumpTolerance_ = 15;
   static constexpr double kGravityAcc_ = 9.81;
   static constexpr double kWatchdogFrequency_ = 50.0;
   static constexpr double kMaxAutopilotFeedbackPublishFrequency_ = 60.0;

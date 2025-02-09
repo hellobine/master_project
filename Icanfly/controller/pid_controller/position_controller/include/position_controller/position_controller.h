@@ -60,7 +60,6 @@ class PositionController {
       const Eigen::Quaterniond& attitude_estimate,
       const PositionControllerParams& config) const;
 
-  void publishTrajectoryMarkers(const quadrotor_common::Trajectory& reference_trajectory);
 
   bool almostZero(const double value) const;
   bool almostZeroThrust(const double thrust_value) const;

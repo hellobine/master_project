@@ -53,6 +53,7 @@ AutoPilot<Tcontroller, Tparams>::AutoPilot(const ros::NodeHandle& nh,
       time_last_autopilot_feedback_published_(),
       time_last_control_command_published_(),
       time_last_control_command_computed_() {
+
   if (!loadParameters()) {
     ROS_ERROR("[%s] Could not load parameters.", pnh_.getNamespace().c_str());
     ros::shutdown();
@@ -62,6 +63,7 @@ AutoPilot<Tcontroller, Tparams>::AutoPilot(const ros::NodeHandle& nh,
   // Publishers
   control_command_pub_ =
       nh_.advertise<quadrotor_msgs::ControlCommand>("control_command", 1);
+
   autopilot_feedback_pub_ =
       nh_.advertise<quadrotor_msgs::AutopilotFeedback>("autopilot/feedback", 1);
 
@@ -78,15 +80,19 @@ AutoPilot<Tcontroller, Tparams>::AutoPilot(const ros::NodeHandle& nh,
   pose_command_sub_ = nh_.subscribe(
       "autopilot/pose_command", 1,
       &AutoPilot<Tcontroller, Tparams>::poseCommandCallback, this);
+
   velocity_command_sub_ = nh_.subscribe(
       "autopilot/velocity_command", 1,
       &AutoPilot<Tcontroller, Tparams>::velocityCommandCallback, this);
+
   reference_state_sub_ = nh_.subscribe(
       "autopilot/reference_state", 1,
       &AutoPilot<Tcontroller, Tparams>::referenceStateCallback, this);
+
   trajectory_sub_ =
       nh_.subscribe("autopilot/trajectory", 1,
                     &AutoPilot<Tcontroller, Tparams>::trajectoryCallback, this);
+
   control_command_input_sub_ = nh_.subscribe(
       "autopilot/control_command_input", 1,
       &AutoPilot<Tcontroller, Tparams>::controlCommandInputCallback, this);
@@ -94,12 +100,15 @@ AutoPilot<Tcontroller, Tparams>::AutoPilot(const ros::NodeHandle& nh,
   start_sub_ =
       nh_.subscribe("autopilot/start", 1,
                     &AutoPilot<Tcontroller, Tparams>::startCallback, this);
+
   force_hover_sub_ =
       nh_.subscribe("autopilot/force_hover", 1,
                     &AutoPilot<Tcontroller, Tparams>::forceHoverCallback, this);
+
   land_sub_ =
       nh_.subscribe("autopilot/land", 1,
                     &AutoPilot<Tcontroller, Tparams>::landCallback, this);
+                    
   off_sub_ = nh_.subscribe("autopilot/off", 1,
                            &AutoPilot<Tcontroller, Tparams>::offCallback, this);
 
@@ -108,6 +117,10 @@ AutoPilot<Tcontroller, Tparams>::AutoPilot(const ros::NodeHandle& nh,
       &AutoPilot<Tcontroller, Tparams>::reloadParamsCallback, this);
 
   marker_pub_ = nh_.advertise<visualization_msgs::Marker>("visualization_marker", 10);
+
+  trajectory_pub_ = nh_.advertise<nav_msgs::Path>("autopilot/tracking_trajectory", 10);
+  tracking_point_pub_ = nh_.advertise<geometry_msgs::PoseStamped>("autopilot/reference_tracking_point", 10);
+
 
 
   // Start watchdog thread
@@ -293,20 +306,7 @@ void AutoPilot<Tcontroller, Tparams>::goToPoseThread() {
             waypoints.emplace_back(radius * cos(theta), radius * sin(theta), 3.0);
         }
 
-        // // 生成8字轨迹航点（Lissajous曲线）
-        // for (int i = 0; i < num_waypoints; ++i) {
-        //     double theta = 2 * M_PI * i / num_waypoints;
-            
-        //     // 8字参数方程
-        //     double x = radius * sin(theta);                   // X轴运动
-        //     double y = 2 * radius * sin(2*theta); // Y轴运动（相位差形成8字）
-        //     double z = 3*cos(theta);                                   // 固定高度
-            
-        //     waypoints.emplace_back(x, y, z);
-        // }
 
-        // go_to_pose_max_velocity_=9.0;
-        // 设置优化参数
         Eigen::VectorXd minimization_weights(4);
         minimization_weights << 0.0, 0.0, 100.0, 100.0;  // 最小 Snap
         Eigen::VectorXd segment_times = Eigen::VectorXd::Ones(num_waypoints) * (2.0 * M_PI * radius / num_waypoints / go_to_pose_max_velocity_);
@@ -344,8 +344,8 @@ void AutoPilot<Tcontroller, Tparams>::goToPoseThread() {
             it->heading = std::prev(it)->heading;
         }
 
-        publishTrajectoryMarkers(go_to_pose_traj);
-        marker_pub_.publish(marker);
+        // publishTrajectoryMarkers(go_to_pose_traj);
+        // marker_pub_.publish(marker);
 
 //-----------------------------------------------------------------------
         // just go one point
@@ -392,44 +392,44 @@ void AutoPilot<Tcontroller, Tparams>::goToPoseThread() {
 
       received_go_to_pose_command_ = false;
     }
-
-    // Go to pose mutex is unlocked because it goes out of scope here
   }
 }
 
 
 template <typename Tcontroller, typename Tparams>
-void AutoPilot<Tcontroller, Tparams>::publishTrajectoryMarkers(const quadrotor_common::Trajectory& reference_trajectory) {
-    
-    marker.header.frame_id = "world";
-    marker.header.stamp = ros::Time::now();
-    marker.ns = "computed_trajectory";
-    marker.id = 0;
-    marker.type = visualization_msgs::Marker::POINTS;
-    marker.action = visualization_msgs::Marker::ADD;
-    marker.scale.x = 0.1;
-    marker.scale.y = 0.1;
-    marker.color.r = 0.0;
-    marker.color.g = 1.0;
-    marker.color.b = 0.0;
-    marker.color.a = 1.0;
+void AutoPilot<Tcontroller, Tparams>::publishTrackingTrajectory() {
+  nav_msgs::Path path_msg;
+  path_msg.header.stamp = ros::Time::now();
+  path_msg.header.frame_id = "world";  // 你的坐标系
 
-        // Debugging: Check if the trajectory has points
-    if (reference_trajectory.points.empty()) {
-        ROS_WARN_STREAM("Trajectory is empty!");
-        return;
-    }
+  for (const auto& traj_point : trajectory_queue_.front().points) {
+    geometry_msgs::PoseStamped pose;
+    pose.header = path_msg.header;
+    pose.pose.position.x = traj_point.position.x();
+    pose.pose.position.y = traj_point.position.y();
+    pose.pose.position.z = traj_point.position.z();
+    path_msg.poses.push_back(pose);
+  }
 
-    for (const auto& point : reference_trajectory.points) {
-        geometry_msgs::Point p;
-        p.x = point.position.x();
-        p.y = point.position.y();
-        p.z = point.position.z();
-        marker.points.push_back(p);
-    }
-    // 
-    // ROS_INFO_STREAM("[ I am pub trajectory!!!!!!!!!!!!!!!!!!!!!!! ]");
+  trajectory_pub_.publish(path_msg);
 }
+
+template <typename Tcontroller, typename Tparams>
+void AutoPilot<Tcontroller, Tparams>::publishReferenceState() {
+  geometry_msgs::PoseStamped ref_state_msg;
+  ref_state_msg.header.stamp = ros::Time::now();
+  ref_state_msg.header.frame_id = "world";  // 确保 RViz 里使用正确的坐标系
+
+  ref_state_msg.pose.position.x = reference_state_.position.x();
+  ref_state_msg.pose.position.y = reference_state_.position.y();
+  ref_state_msg.pose.position.z = reference_state_.position.z();
+
+  ref_state_msg.pose.orientation = quadrotor_common::eigenToGeometry(
+      Eigen::Quaterniond(reference_state_.orientation));
+
+  tracking_point_pub_.publish(ref_state_msg);
+}
+
 
 // all command is pub in there
 template <typename Tcontroller, typename Tparams>
@@ -744,15 +744,15 @@ void AutoPilot<Tcontroller, Tparams>::trajectoryCallback(
       return;
     }
     // Check if there is a jump in the beginning of the trajectory
-    if ((reference_state_.position -
-         quadrotor_common::geometryToEigen(msg->points[0].pose.position))
-            .norm() > kPositionJumpTolerance_) {
-      ROS_WARN(
-          "[%s] First received trajectory segment does not start at current "
-          "position, will ignore trajectory",
-          pnh_.getNamespace().c_str());
-      return;
-    }
+    // if ((reference_state_.position -
+    //      quadrotor_common::geometryToEigen(msg->points[0].pose.position))
+    //         .norm() > kPositionJumpTolerance_) {
+    //   ROS_WARN(
+    //       "[%s] First received trajectory segment does not start at current "
+    //       "position, will ignore trajectory",
+    //       pnh_.getNamespace().c_str());
+    //   return;
+    // }
   } else {
     // Check that there is no jump from the last trajectory in the queue to the
     // newly received one
@@ -1326,7 +1326,10 @@ AutoPilot<Tcontroller, Tparams>::executeTrajectory(
     }
   }
   *trajectories_left_in_queue = trajectory_queue_.size();
-
+  
+  publishReferenceState();
+  publishTrackingTrajectory();
+  
   // handle case of empty reference_trajectory
   if (reference_trajectory_.points.empty()) {
     ROS_WARN("Empty reference trajectory!");
