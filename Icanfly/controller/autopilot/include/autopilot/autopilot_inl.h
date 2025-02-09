@@ -125,6 +125,7 @@ AutoPilot<Tcontroller, Tparams>::AutoPilot(const ros::NodeHandle& nh,
 
   // Start watchdog thread
   try {
+    ROS_ERROR("successfully start watchdog thread.");
     watchdog_thread_ =
         std::thread(&AutoPilot<Tcontroller, Tparams>::watchdogThread, this);
   } catch (...) {
@@ -171,10 +172,11 @@ AutoPilot<Tcontroller, Tparams>::~AutoPilot() {
 // -> set state_estimate_available_ false
 template <typename Tcontroller, typename Tparams>
 void AutoPilot<Tcontroller, Tparams>::watchdogThread() {
+  // ROS_ERROR("watchdogThread!!");
   ros::Rate watchdog_rate(kWatchdogFrequency_);
   while (ros::ok() && !stop_watchdog_thread_) {
     watchdog_rate.sleep();
-
+    // ROS_ERROR("watchdogThread!!");
     std::lock_guard<std::mutex> main_lock(main_mutex_);
 
     const ros::Time time_now = ros::Time::now();
@@ -715,9 +717,16 @@ void AutoPilot<Tcontroller, Tparams>::referenceStateCallback(
 template <typename Tcontroller, typename Tparams>
 void AutoPilot<Tcontroller, Tparams>::trajectoryCallback(
     const quadrotor_msgs::Trajectory::ConstPtr& msg) {
+      ROS_WARN(
+        "giaogiao trajectoryCallback First received trajectory segment does not start at current "
+        "position, will ignore trajectory");
   if (destructor_invoked_) {
     return;
   }
+
+  ROS_WARN(
+          "giaogiao trajectoryCallback First received trajectory segment does not start at current "
+          "position, will ignore trajectory");
 
   std::lock_guard<std::mutex> main_lock(main_mutex_);
 
@@ -748,7 +757,7 @@ void AutoPilot<Tcontroller, Tparams>::trajectoryCallback(
     //      quadrotor_common::geometryToEigen(msg->points[0].pose.position))
     //         .norm() > kPositionJumpTolerance_) {
     //   ROS_WARN(
-    //       "[%s] First received trajectory segment does not start at current "
+    //       "[%s]11  First received trajectory segment does not start at current "
     //       "position, will ignore trajectory",
     //       pnh_.getNamespace().c_str());
     //   return;
@@ -815,6 +824,8 @@ void AutoPilot<Tcontroller, Tparams>::controlCommandInputCallback(
 template <typename Tcontroller, typename Tparams>
 void AutoPilot<Tcontroller, Tparams>::startCallback(
     const std_msgs::Empty::ConstPtr& msg) {
+  
+  ROS_INFO(" startCallback startCallback startCallback");
   if (destructor_invoked_) {
     return;
   }
