@@ -116,7 +116,7 @@ AutoPilot<Tcontroller, Tparams>::AutoPilot(const ros::NodeHandle& nh,
       "autopilot/reload_parameters", 1,
       &AutoPilot<Tcontroller, Tparams>::reloadParamsCallback, this);
 
-  marker_pub_ = nh_.advertise<visualization_msgs::Marker>("visualization_marker", 10);
+  // marker_pub_ = nh_.advertise<visualization_msgs::Marker>("visualization_marker", 10);
 
   trajectory_pub_ = nh_.advertise<nav_msgs::Path>("autopilot/tracking_trajectory", 10);
   tracking_point_pub_ = nh_.advertise<geometry_msgs::PoseStamped>("autopilot/reference_tracking_point", 10);

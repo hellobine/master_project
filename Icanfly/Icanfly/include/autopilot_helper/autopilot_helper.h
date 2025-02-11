@@ -7,9 +7,18 @@
 #include <quadrotor_msgs/AutopilotFeedback.h>
 #include <ros/ros.h>
 #include <Eigen/Dense>
+#include <cmath>
 
 #include <visualization_msgs/Marker.h>
 #include "autopilot/autopilot_states.h"
+#include "trajectory_generation_helper/heading_trajectory_helper.h"
+#include "minimum_jerk_trajectories/Vec3.h"
+#include "minimum_jerk_trajectories/RapidTrajectoryGenerator.h"
+#include "trajectory_generation_helper/acrobatic_sequence.h"
+#include "trajectory_generation_helper/circle_trajectory_helper.h"
+#include "trajectory_generation_helper/heading_trajectory_helper.h"
+
+using namespace minimum_jerk_trajectories;
 
 //give a interface example
 
@@ -78,6 +87,9 @@ class AutoPilotHelper {
   void sendLand() const;
   void sendOff() const;
 
+  void generatecircleTrajectory(quadrotor_common::Trajectory &traj_msg);
+  void generateEightTrajectory(quadrotor_common::Trajectory &traj_msg);
+  void addForwardHeading(quadrotor_common::Trajectory* trajectory);
   
 
  private:
@@ -100,8 +112,8 @@ class AutoPilotHelper {
 
   ros::Subscriber autopilot_feedback_sub_;
 
+  ros::Publisher marker_pub;
 
-  ros::Publisher marker_pub_;
   visualization_msgs::Marker marker;
 
   // Variables

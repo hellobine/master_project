@@ -140,7 +140,7 @@ DroneMpcController::DroneMpcController(ros::NodeHandle& nh, ros::NodeHandle& pnh
         rotors_control::kDefaultCommandRollPitchYawrateThrustTopic, 10);
     odometry_sub_ = nh.subscribe("/hummingbird/odometry_sensor1/odometry", 1,
                                 &DroneMpcController::odometryCallback, this);
-    marker_pub_ = nh.advertise<visualization_msgs::Marker>("visualization_marker", 10);
+    marker_pub_ = nh.advertise<visualization_msgs::Marker>("visualization_marker1", 10);
     target_point_pub_ = nh.advertise<geometry_msgs::PoseStamped>("/hummingbird/target_point", 10);
     timer_ = nh.createTimer(ros::Duration(0.1), &DroneMpcController::publishTrajectoryMarkers, this);
 

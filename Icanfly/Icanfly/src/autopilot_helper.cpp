@@ -42,6 +42,11 @@ AutoPilotHelper::AutoPilotHelper(const ros::NodeHandle& nh,
   autopilot_feedback_sub_ =
       nh_.subscribe("/hummingbird/autopilot/feedback", 1,
                     &AutoPilotHelper::autopilotFeedbackCallback, this);
+
+                    
+  // 创建 RViz 轨迹发布者
+  marker_pub = nh_.advertise<visualization_msgs::Marker>("global_trajectory", 1, true);
+ 
 }
 
 AutoPilotHelper::~AutoPilotHelper() {}
@@ -293,5 +298,220 @@ void AutoPilotHelper::autopilotFeedbackCallback(
     first_autopilot_feedback_received_ = true;
   }
 }
+
+void AutoPilotHelper::generateEightTrajectory(quadrotor_common::Trajectory &traj_msg) {
+
+  // 1. 设置 Marker 参数
+  marker.header.frame_id = "world";  // 请根据实际坐标系修改
+  marker.header.stamp = ros::Time::now();
+  marker.ns = "trajectory";
+  marker.id = 0;
+  marker.type = visualization_msgs::Marker::POINTS;  // 显示为点
+  marker.action = visualization_msgs::Marker::ADD;
+  marker.scale.x = 0.05;  // 点的大小
+  marker.scale.y = 0.05;
+  marker.scale.z = 0.05;
+  marker.color.r = 1.0;  // 红色
+  marker.color.g = 0.0;
+  marker.color.b = 0.0;
+  marker.color.a = 1.0;
+  marker.pose.orientation.w = 1.0;
+
+  // 2. 轨迹参数设置
+  double T = 0.1;                // 每段轨迹持续时间（秒）
+  int num_loops = 5;            // 总共 5 圈
+  int num_points_per_loop = 100; // 每圈 100 个 waypoint
+  int total_waypoints = num_loops * num_points_per_loop;
+  Vec3 gravity(0, 0, -9.81);       // 重力加速度
+
+  // 3. 生成原始 waypoints（构造一个 8 字形立体轨迹）
+  std::vector<Vec3> waypoints;
+  waypoints.reserve(total_waypoints);
+  for (int i = 0; i < total_waypoints; ++i) {
+    double t = (double)i / num_points_per_loop * 2 * M_PI;
+    double x = 3 * cos(t) - 3;
+    double y = sin(t);
+    double z = 3 * sin(2 * t) / 2 + 4;
+    waypoints.push_back(Vec3(x, y, z));
+  }
+
+  // 4. 初始化轨迹消息
+  traj_msg.timestamp = ros::Time::now();
+  traj_msg.trajectory_type = quadrotor_common::Trajectory::TrajectoryType::GENERAL;
+  traj_msg.points.clear(); 
+
+  // 5. 起始状态：第一个 waypoint 为起点，速度和加速度初始均为 0
+  Vec3 pos0 = waypoints[0];
+  Vec3 vel0(0, 0, 0);
+  Vec3 acc0(0, 0, 0);
+  double cumulative_time = 0.0;  // 用于计算每个点的 time_from_start
+
+  // 每段轨迹采样点数量（可调整）
+  int num_samples_per_segment = 10;
+
+  // 6. 对每段 waypoint（从 pos0 到下一个 waypoint）生成 mini-jerk 轨迹段，并采样存储中间点
+  for (size_t i = 1; i < waypoints.size(); i++) {
+    Vec3 posf = waypoints[i];
+    Vec3 velf(0, 0, 0);
+    Vec3 accf(0, 0, 0);
+
+
+    RapidTrajectoryGenerator traj_segment(pos0, vel0, acc0, gravity);
+    traj_segment.SetGoalPosition(posf);
+    traj_segment.SetGoalVelocity(velf);
+    traj_segment.SetGoalAcceleration(accf);
+    traj_segment.Generate(T);
+
+    // 对该轨迹段按固定时间间隔采样
+    for (int j = 0; j <= num_samples_per_segment; j++) {
+      double t_sample = T * j / double(num_samples_per_segment);
+
+      Vec3 pos_sample = traj_segment.GetPosition(t_sample);  // 请确保 GetPosition 接口已实现
+      Vec3 vel_sample  = traj_segment.GetVelocity(t_sample);
+
+      quadrotor_common::TrajectoryPoint point;
+      point.time_from_start = ros::Duration(cumulative_time + t_sample);
+      point.position.x() = pos_sample[0];
+      point.position.y() = pos_sample[1];
+      point.position.z() = pos_sample[2];
+
+      // 赋值速度
+      point.velocity.x() = vel_sample[0];
+      point.velocity.y() = vel_sample[1];
+      point.velocity.z() = vel_sample[2];
+
+      // 添加到 RViz Marker 中显示
+      geometry_msgs::Point rviz_point;
+      rviz_point.x = pos_sample[0];
+      rviz_point.y = pos_sample[1];
+      rviz_point.z = pos_sample[2];
+
+      marker.points.push_back(rviz_point);
+
+      // 将轨迹点添加到轨迹消息中
+      traj_msg.points.push_back(point);
+    }
+    // 更新累计时间，并将当前段终点作为下一段起点
+    cumulative_time += T;
+    pos0 = posf;
+    vel0 = velf;
+    acc0 = accf;
+  }
+
+  trajectory_generation_helper::heading::addForwardHeading(&traj_msg);
+
+  // 发布轨迹到 RViz
+  marker_pub.publish(marker);
+}
+
+void AutoPilotHelper::generatecircleTrajectory(quadrotor_common::Trajectory &traj_msg) {
+
+  // 1. 设置 Marker 参数
+  marker.header.frame_id = "world";  // 请根据实际坐标系修改
+  marker.header.stamp = ros::Time::now();
+  marker.ns = "trajectory";
+  marker.id = 0;
+  marker.type = visualization_msgs::Marker::POINTS;  // 显示为点
+  marker.action = visualization_msgs::Marker::ADD;
+  marker.scale.x = 0.05;  // 点的大小
+  marker.scale.y = 0.05;
+  marker.scale.z = 0.05;
+  marker.color.r = 1.0;  // 红色
+  marker.color.g = 0.0;
+  marker.color.b = 0.0;
+  marker.color.a = 1.0;
+  marker.pose.orientation.w = 1.0;
+
+  int n_loops = 5;
+  double exec_loop_rate = 100.0;
+  double circle_velocity = 3.0;
+  double radius = 4.0;
+  Eigen::Vector3d circle_center = Eigen::Vector3d(0,-4,3);
+
+
+  traj_msg = trajectory_generation_helper::circles::computeHorizontalCircleTrajectory(
+  circle_center,radius, circle_velocity, M_PI_2,
+  -(-0.5 + 2 * n_loops) * M_PI, exec_loop_rate);  
+
+  trajectory_generation_helper::heading::addForwardHeading(&traj_msg);
+
+  for (const auto &point : traj_msg.points) {
+    // 添加到 RViz Marker 中显示
+    geometry_msgs::Point rviz_point;
+    rviz_point.x = point.position.x();
+    rviz_point.y = point.position.y();
+    rviz_point.z = point.position.z();
+    marker.points.push_back(rviz_point);
+  }
+  // 发布轨迹到 RViz
+  marker_pub.publish(marker);
+}
+
+void AutoPilotHelper::addForwardHeading(quadrotor_common::Trajectory* trajectory) {
+  auto iterator(trajectory->points.begin());
+  auto iterator_prev(trajectory->points.begin());
+  iterator_prev = std::prev(iterator_prev);
+  auto iterator_next(trajectory->points.begin());
+  iterator_next = std::next(iterator_next);
+  auto last_element = trajectory->points.end();
+  last_element = std::prev(last_element);
+  double time_step;
+
+  for (int i = 0; i < trajectory->points.size(); i++) {
+    // do orientation first, since bodyrate conversion will depend on it
+    Eigen::Vector3d I_eZ_I(0.0, 0.0, 1.0);
+    Eigen::Quaterniond quatDes = Eigen::Quaterniond::FromTwoVectors(
+        I_eZ_I, iterator->acceleration + Eigen::Vector3d(0.0, 0.0, 9.81));
+
+    double heading = std::atan2(iterator->velocity.y(), iterator->velocity.x());
+    // set full orientation and heading to zero
+    Eigen::Quaternion<double> q_heading = Eigen::Quaternion<double>(
+        Eigen::AngleAxis<double>(heading, Eigen::Vector3d::UnitZ()));
+    Eigen::Quaternion<double> q_orientation = quatDes * q_heading;
+    iterator->orientation = q_orientation;
+    iterator->heading = 0.0;  // heading is now absorbed in orientation
+    iterator->heading_rate = 0.0;
+    iterator->heading_acceleration = 0.0;
+
+    Eigen::Vector3d thrust_1;
+    Eigen::Vector3d thrust_2;
+    // catch case of first and last element
+    if (i == 0) {
+      thrust_1 = iterator->acceleration + Eigen::Vector3d(0.0, 0.0, 9.81);
+      time_step =
+          (iterator_next->time_from_start - iterator->time_from_start).toSec();
+      thrust_2 = iterator_next->acceleration + Eigen::Vector3d(0.0, 0.0, 9.81);
+    } else if (i < trajectory->points.size() - 1) {
+      thrust_1 = iterator_prev->acceleration + Eigen::Vector3d(0.0, 0.0, 9.81);
+      time_step =
+          (iterator_next->time_from_start - iterator_prev->time_from_start)
+              .toSec();
+      thrust_2 = iterator_next->acceleration + Eigen::Vector3d(0.0, 0.0, 9.81);
+    } else {
+      // at the last point, we extrapolate the acceleration
+      thrust_1 = iterator_prev->acceleration + Eigen::Vector3d(0.0, 0.0, 9.81);
+      thrust_2 = iterator->acceleration + Eigen::Vector3d(0.0, 0.0, 9.81) +
+                 time_step / 2.0 * iterator->jerk;
+    }
+
+    thrust_1.normalize();
+    thrust_2.normalize();
+
+    Eigen::Vector3d crossProd =
+        thrust_1.cross(thrust_2);  // direction of omega, in inertial axes
+    Eigen::Vector3d angular_rates_wf = Eigen::Vector3d(0, 0, 0);
+    if (crossProd.norm() > 0.0) {
+      angular_rates_wf = std::acos(thrust_1.dot(thrust_2)) / time_step *
+                         crossProd / crossProd.norm();
+    }
+    // rotate bodyrates to bodyframe
+    iterator->bodyrates = q_orientation.inverse() * angular_rates_wf;
+
+    iterator_prev++;
+    iterator++;
+    iterator_next++;
+  }
+}
+
 
 }  // namespace autopilot_helper

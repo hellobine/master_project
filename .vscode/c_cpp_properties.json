@@ -1,0 +1,46 @@
+{
+  "configurations": [
+    {
+      "browse": {
+        "databaseFilename": "${default}",
+        "limitSymbolsToIncludedHeaders": false
+      },
+      "includePath": [
+        "/home/hello/catkin_ws_rotors/devel/include/**",
+        "/usr/local/include/**",
+        "/opt/ros/noetic/include/**",
+        "/home/hello/catkin_ws_rotors/src/Icanfly/controller/autopilot/include/**",
+        "/home/hello/catkin_ws_rotors/src/eigen_checks/include/**",
+        "/home/hello/catkin_ws_rotors/src/Icanfly/Icanfly/include/**",
+        "/home/hello/catkin_ws_rotors/src/Icanfly/common/utils/manual_flight_assistant/include/**",
+        "/home/hello/catkin_ws_rotors/src/mav_comm/mav_msgs/include/**",
+        "/home/hello/catkin_ws_rotors/src/mav_comm/mav_planning_msgs/include/**",
+        "/home/hello/catkin_ws_rotors/src/Icanfly/trajectory_planning/minimum_jerk_trajectories/include/**",
+        "/home/hello/catkin_ws_rotors/src/minkindr/minkindr/include/**",
+        "/home/hello/catkin_ws_rotors/src/numpy_eigen/include/**",
+        "/home/hello/catkin_ws_rotors/src/Icanfly/trajectory_planning/polynomial_trajectories/include/**",
+        "/home/hello/catkin_ws_rotors/src/Icanfly/controller/pid_controller/position_controller/include/**",
+        "/home/hello/catkin_ws_rotors/src/rpg_quadrotor_common/quadrotor_common/include/**",
+        "/home/hello/catkin_ws_rotors/src/rotors_simulator/rotors_control/include/**",
+        "/home/hello/catkin_ws_rotors/src/rotors_simulator/rotors_gazebo/include/**",
+        "/home/hello/catkin_ws_rotors/src/rotors_simulator/rotors_gazebo_plugins/include/**",
+        "/home/hello/catkin_ws_rotors/src/rotors_simulator/rotors_hil_interface/include/**",
+        "/home/hello/catkin_ws_rotors/src/rotors_simulator/rotors_joy_interface/include/**",
+        "/home/hello/catkin_ws_rotors/src/rpg_common/include/**",
+        "/home/hello/catkin_ws_rotors/src/Icanfly/controller/mpc_controller/rpg_mpc/include/**",
+        "/home/hello/catkin_ws_rotors/src/Icanfly/simulator_interface/rpg_rotors_interface/include/**",
+        "/home/hello/catkin_ws_rotors/src/Icanfly/common/bridges/sbus_bridge/include/**",
+        "/home/hello/catkin_ws_rotors/src/rpg_quadrotor_common/state_predictor/include/**",
+        "/home/hello/catkin_ws_rotors/src/Icanfly/trajectory_planning/trajectory_generation_helper/include/**",
+        "/home/hello/catkin_ws_rotors/src/Icanfly/common/utils/trajectory_visualizer/include/**",
+        "/usr/include/**"
+      ],
+      "name": "ROS",
+      "intelliSenseMode": "gcc-x64",
+      "compilerPath": "/usr/bin/gcc",
+      "cStandard": "gnu11",
+      "cppStandard": "c++14"
+    }
+  ],
+  "version": 4
+}

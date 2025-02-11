@@ -61,7 +61,7 @@ int main(int argc, char** argv) {
 
     //rviz
     // 创建 RViz 发布者
-    ros::Publisher marker_pub = nh.advertise<visualization_msgs::Marker>("visualization_marker", 10);
+    // ros::Publisher marker_pub = nh.advertise<visualization_msgs::Marker>("visualization_marker", 10);
 
     // 初始化Marker消息
     visualization_msgs::Marker trajectory_marker;
@@ -155,7 +155,7 @@ int main(int argc, char** argv) {
                   
         t = ros::Time::now().toSec() - begin_t;
 
-        marker_pub.publish(trajectory_marker);
+        // marker_pub.publish(trajectory_marker);
 
         // 查找与当前定位正前方1米最接近的轨迹点
         TrajectoryPoint target_point;
