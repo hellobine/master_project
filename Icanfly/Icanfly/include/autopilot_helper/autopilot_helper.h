@@ -7,8 +7,9 @@
 #include <quadrotor_msgs/AutopilotFeedback.h>
 #include <ros/ros.h>
 #include <Eigen/Dense>
+#include <vector>
 #include <cmath>
-
+#include <Eigen/Core>
 #include <visualization_msgs/Marker.h>
 #include "autopilot/autopilot_states.h"
 #include "trajectory_generation_helper/heading_trajectory_helper.h"
@@ -17,6 +18,8 @@
 #include "trajectory_generation_helper/acrobatic_sequence.h"
 #include "trajectory_generation_helper/circle_trajectory_helper.h"
 #include "trajectory_generation_helper/heading_trajectory_helper.h"
+#include "trajectory_generation_helper/polynomial_trajectory_helper.h"
+#include "mini_snap_trajectory_generator/trajectory_generator.h"
 
 using namespace minimum_jerk_trajectories;
 
@@ -87,10 +90,16 @@ class AutoPilotHelper {
   void sendLand() const;
   void sendOff() const;
 
-  void generatecircleTrajectory(quadrotor_common::Trajectory &traj_msg);
+  //ypw
+  void generateCircleTrajectory(quadrotor_common::Trajectory &traj_msg);
   void generateEightTrajectory(quadrotor_common::Trajectory &traj_msg);
   void addForwardHeading(quadrotor_common::Trajectory* trajectory);
-  
+  quadrotor_common::Trajectory generateMultiPointInspectionTrajectory(
+    const Eigen::Vector3d& start_point,
+    const std::vector<Eigen::Vector3d>& inspection_points,
+    double average_speed,
+    double sampling_frequency);
+  void generateCurveTrajectory(quadrotor_common::Trajectory &traj_msg);
 
  private:
   void autopilotFeedbackCallback(

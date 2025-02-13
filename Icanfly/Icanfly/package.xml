@@ -30,7 +30,9 @@
   <depend>sensor_msgs</depend>
   <depend>casadi</depend>
   <depend>rpg_mpc</depend>
-    <depend>autopilot</depend>
+  <depend>autopilot</depend>
+  <depend>quadrotor_msgs</depend>
+  <!-- <depend>mini_snap_trajectory_generator</depend> -->
 
   <!-- <depend>rpg_quadrotor_control</depend> -->
   

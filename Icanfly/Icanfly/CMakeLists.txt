@@ -22,6 +22,7 @@ find_package(catkin REQUIRED COMPONENTS gazebo_msgs geometry_msgs mav_msgs
   trajectory_generation_helper 
   rpg_mpc
   autopilot
+  
 )
 
 find_package(casadi REQUIRED)
@@ -39,9 +40,9 @@ catkin_package(
 include_directories(include ${catkin_INCLUDE_DIRS})
 include_directories(
     include/autopilot_helper
-    include/mpc_controller
-    include/pid_controller
+    # include/pid_controller
     include/quadrotor_mpc_codegen
+    include/mini_snap_trajectory_generator
     # include ../rpg_mpc/model/quadrotor_mpc_codegen/
     # include../../rotors_control/trajectory_generation_helper
     # include()
@@ -74,32 +75,29 @@ include_directories(
 # add_dependencies(run_circle_locus ${catkin_EXPORTED_TARGETS})
 
 ## 1️⃣ 先编译主要逻辑（DronePIDController.cpp）
-add_library(PIDController
-  src/DronePIDController.cpp
-)
-add_library(MPCController
-  src/DroneMPCController.cpp
-)
+# add_library(PIDController
+#   src/DronePIDController.cpp
+# )
+
 add_library(autopilot_helper
   src/autopilot_helper.cpp
 )
 
-
+add_library(mini_snap_trajectory_generator
+  src/trajectory_generator.cpp
+)
 
 ## 连接 ROS 依赖
-target_link_libraries(PIDController MPCController autopilot_helper ${catkin_LIBRARIES})
-add_dependencies(PIDController MPCController autopilot_helper ${catkin_EXPORTED_TARGETS})
+# target_link_libraries(PIDController MPCController autopilot_helper ${catkin_LIBRARIES})
+# add_dependencies(PIDController MPCController autopilot_helper ${catkin_EXPORTED_TARGETS})
 
-add_executable(pid_drone_controller src/DronePIDControllerNode.cpp)
-target_link_libraries(pid_drone_controller PIDController ${catkin_LIBRARIES})
-add_dependencies(pid_drone_controller ${catkin_EXPORTED_TARGETS})
+# add_executable(pid_drone_controller src/DronePIDControllerNode.cpp)
+# target_link_libraries(pid_drone_controller PIDController ${catkin_LIBRARIES})
+# add_dependencies(pid_drone_controller ${catkin_EXPORTED_TARGETS})
 
-add_executable(drone_mpc_controller src/DroneMPCControllerNode.cpp)
-target_link_libraries(drone_mpc_controller MPCController ${catkin_LIBRARIES} /usr/local/lib/libcasadi.so)
-add_dependencies(drone_mpc_controller ${catkin_EXPORTED_TARGETS})
 
 add_executable(fly_10_turn_experience_node src/fly_10_turn_experience.cpp)
-target_link_libraries(fly_10_turn_experience_node autopilot_helper ${catkin_LIBRARIES})
+target_link_libraries(fly_10_turn_experience_node autopilot_helper mini_snap_trajectory_generator ${catkin_LIBRARIES})
 add_dependencies(fly_10_turn_experience_node ${catkin_EXPORTED_TARGETS})
 
 

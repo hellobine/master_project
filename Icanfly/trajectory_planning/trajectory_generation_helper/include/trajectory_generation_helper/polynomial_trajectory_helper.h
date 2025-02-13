@@ -81,13 +81,13 @@ generateMinimumSnapRingTrajectoryWithSegmentRefinement(
     const double max_velocity, const double max_normalized_thrust,
     const double max_roll_pitch_rate, const double sampling_frequency);
 
-//ypw
-quadrotor_common::Trajectory generateFigureEightTrajectory(
-    const Eigen::VectorXd& initial_segment_times,
-    const polynomial_trajectories::PolynomialTrajectorySettings& trajectory_settings,
-    const double max_velocity, const double max_normalized_thrust,
-    const double max_roll_pitch_rate, const double sampling_frequency,
-    const Eigen::Vector3d& center, const double radius_x, const double radius_z);
+// //ypw
+// quadrotor_common::Trajectory generateFigureEightTrajectory(
+//     const Eigen::VectorXd& initial_segment_times,
+//     const polynomial_trajectories::PolynomialTrajectorySettings& trajectory_settings,
+//     const double max_velocity, const double max_normalized_thrust,
+//     const double max_roll_pitch_rate, const double sampling_frequency,
+//     const Eigen::Vector3d& center, const double radius_x, const double radius_z);
 
 // Sampling function
 quadrotor_common::Trajectory samplePolynomial(
