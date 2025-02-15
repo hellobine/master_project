@@ -59,6 +59,10 @@
           "sstream": "cpp",
           "stdexcept": "cpp",
           "cinttypes": "cpp",
-          "typeinfo": "cpp"
+          "typeinfo": "cpp",
+          "hash_map": "cpp",
+          "hash_set": "cpp",
+          "bitset": "cpp",
+          "valarray": "cpp"
      }
 }

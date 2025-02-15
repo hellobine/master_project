@@ -230,8 +230,8 @@ Eigen::MatrixXd MiniSnapTrajectoryGeneratorTool::SolveQPClosedForm(
 
 
 MiniSnapTrajectoryGeneratorTool::MiniSnapTrajectoryGeneratorTool(){
-    Vel=1.0;//当前机器人能运行的最大速度
-    Acc=1.0;//当前机器人能运行的最大加速度
+    Vel=4.0;//当前机器人能运行的最大速度
+    Acc=2.0;//当前机器人能运行的最大加速度
     dev_order= 4;
     min_order=3;
     visualization_traj_width=0.15;

@@ -61,40 +61,7 @@
 
         <remap from="odometry" to="ground_truth/odometry" />
         <remap from="rpg_rotors_interface/arm" to="bridge/arm" />
-      </node>
-
-      <!-- Autopilot -->
-      <group unless="$(arg use_mpc)">
-        <node pkg="pid_controller" type="autopilot_pid_instance" name="autopilot_pid" output="screen">
-          <rosparam file="$(find state_predictor)/parameters/hummingbird.yaml" />
-          <rosparam file="$(find rpg_rotors_interface)/parameters/position_controller.yaml" />
-          <rosparam file="$(find rpg_rotors_interface)/parameters/autopilot.yaml" />
-
-          <param name="position_controller/use_rate_mode" value="True" />
-
-          <param name="velocity_estimate_in_world_frame" value="false" />
-          <param name="state_estimate_timeout" value="0.1" />
-          <param name="control_command_delay" value="0.05" />
-          <param name="enable_command_feedthrough" value="$(arg enable_command_feedthrough)" />
-
-          <remap from="autopilot/state_estimate" to="ground_truth/odometry" />
-        </node>
-      </group>
-      <group if="$(arg use_mpc)">
-        <node pkg="rpg_mpc" type="autopilot_mpc_instance" name="autopilot_mpc" output="screen">
-          <rosparam file="$(find state_predictor)/parameters/hummingbird.yaml" />
-          <rosparam file="$(find rpg_mpc)/parameters/default.yaml" />
-          <rosparam file="$(find rpg_rotors_interface)/parameters/autopilot.yaml" />
-
-          <param name="velocity_estimate_in_world_frame" value="false" />
-          <param name="state_estimate_timeout" value="0.1" />
-          <param name="control_command_delay" value="0.05" />
-          <param name="enable_command_feedthrough" value="$(arg enable_command_feedthrough)" />
-
-          <remap from="autopilot/state_estimate" to="ground_truth/odometry" />
-        </node>
-      </group>
-      
+      </node>      
     </group>
 
     <group unless="$(arg use_ground_truth)">

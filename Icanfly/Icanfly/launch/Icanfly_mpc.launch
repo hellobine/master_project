@@ -65,7 +65,7 @@
 
       <!-- Autopilot -->
       <group unless="$(arg use_mpc)">
-        <node pkg="autopilot" type="autopilot" name="autopilot" output="screen">
+        <node pkg="pid_controller" type="autopilot_pid_instance" name="autopilot_pid" output="screen">
           <rosparam file="$(find state_predictor)/parameters/hummingbird.yaml" />
           <rosparam file="$(find rpg_rotors_interface)/parameters/position_controller.yaml" />
           <rosparam file="$(find rpg_rotors_interface)/parameters/autopilot.yaml" />
@@ -81,7 +81,7 @@
         </node>
       </group>
       <group if="$(arg use_mpc)">
-        <node pkg="rpg_mpc" type="autopilot_mpc_instance" name="autopilot" output="screen">
+        <node pkg="rpg_mpc" type="autopilot_mpc_instance" name="autopilot_mpc" output="screen">
           <rosparam file="$(find state_predictor)/parameters/hummingbird.yaml" />
           <rosparam file="$(find rpg_mpc)/parameters/default.yaml" />
           <rosparam file="$(find rpg_rotors_interface)/parameters/autopilot.yaml" />

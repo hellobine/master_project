@@ -52,7 +52,7 @@ AutoPilotHelper::AutoPilotHelper(const ros::NodeHandle& nh,
   marker.header.stamp = ros::Time::now();
   marker.ns = "trajectory";
   marker.id = 0;
-  marker.type = visualization_msgs::Marker::POINTS;  // 显示为点
+  marker.type = visualization_msgs::Marker::LINE_STRIP;  // 显示为点
   marker.action = visualization_msgs::Marker::ADD;
   marker.scale.x = 0.05;  // 点的大小
   marker.scale.y = 0.05;
@@ -473,9 +473,6 @@ void AutoPilotHelper::generateEightTrajectory(quadrotor_common::Trajectory &traj
 }
 
 void AutoPilotHelper::generateCircleTrajectory(quadrotor_common::Trajectory &traj_msg) {
-
-  
-
   int n_loops = 5;
   double exec_loop_rate = 100.0;
   double circle_velocity = 3.0;
@@ -500,7 +497,6 @@ void AutoPilotHelper::generateCircleTrajectory(quadrotor_common::Trajectory &tra
   // 发布轨迹到 RViz
   marker_pub.publish(marker);
 }
-
 
 quadrotor_common::Trajectory AutoPilotHelper::generateMultiPointInspectionTrajectory(
   const Eigen::Vector3d& start_point,
@@ -619,25 +615,37 @@ quadrotor_common::Trajectory AutoPilotHelper::generateMultiPointInspectionTrajec
 void AutoPilotHelper::generateCurveTrajectory(quadrotor_common::Trajectory &traj_msg) {
 
   MiniSnapTrajectoryGeneratorTool miniSnapTrajectoryGenerator;
+  int loop_num=5;
+
 
   // //state of start point
   miniSnapTrajectoryGenerator.start_position(0) = 0;
   miniSnapTrajectoryGenerator.start_position(1) = 0;
-  miniSnapTrajectoryGenerator.start_position(2) = 0;
+  miniSnapTrajectoryGenerator.start_position(2) = 3;
 
-  miniSnapTrajectoryGenerator.start_velocity(0) = 0;
-  miniSnapTrajectoryGenerator.start_velocity(1) = 0;
-  miniSnapTrajectoryGenerator.start_velocity(2) = 0;
+  // miniSnapTrajectoryGenerator.start_velocity(0) = 0;
+  // miniSnapTrajectoryGenerator.start_velocity(1) = 0;
+  // miniSnapTrajectoryGenerator.start_velocity(2) = 0;
   vector<Vector3d> wp_list;
+  // for(int i=0; i< loop_num;i++){
+    Eigen::Vector3d manual_pt1(0.0, -3.0, 4.0);
+    Eigen::Vector3d manual_pt2(-3.0, 0.0, 5.0);
+    Eigen::Vector3d manual_pt3(0.0, 3.0, 6.0);
+    Eigen::Vector3d manual_pt4(3.0, 0.0, 7.0);
+    Eigen::Vector3d manual_pt5(0.0, -3.0, 8.0);
+    Eigen::Vector3d manual_pt6(-2.0, 2.0, 4.0);
+    Eigen::Vector3d manual_pt7(0.0, 3.0, 1.50);
+    Eigen::Vector3d manual_pt8(0.0, 0.0, 3.0);
+    wp_list.push_back(manual_pt1);
+    wp_list.push_back(manual_pt2);
+    wp_list.push_back(manual_pt3);
+    wp_list.push_back(manual_pt4);
+    wp_list.push_back(manual_pt5);
+    wp_list.push_back(manual_pt6);
+    wp_list.push_back(manual_pt7);
+    wp_list.push_back(manual_pt8);
+  // }
 
-  Eigen::Vector3d manual_pt1(2.0, 2.0, 3.0);
-  Eigen::Vector3d manual_pt2(3.0, 5.0, 6.0);
-  Eigen::Vector3d manual_pt3(1.0, 2.0, 8.0);
-  Eigen::Vector3d manual_pt4(3.0, 1.0, 7.0);
-  wp_list.push_back(manual_pt1);
-  wp_list.push_back(manual_pt2);
-  wp_list.push_back(manual_pt3);
-  wp_list.push_back(manual_pt4);
 
   MatrixXd waypoints(wp_list.size() + 1, 3);
   waypoints.row(0) = miniSnapTrajectoryGenerator.start_position;
@@ -645,7 +653,31 @@ void AutoPilotHelper::generateCurveTrajectory(quadrotor_common::Trajectory &traj
   for (int k = 0; k < (int) wp_list.size(); k++)
       waypoints.row(k + 1) = wp_list[k];
 
-  traj_msg = miniSnapTrajectoryGenerator.TrajGeneration(waypoints);
+  // traj_msg = miniSnapTrajectoryGenerator.TrajGeneration(waypoints);
+  // trajectory_generation_helper::heading::addForwardHeading(&traj_msg);
+
+  // 生成基础轨迹（单圈）
+  quadrotor_common::Trajectory base_traj = 
+      miniSnapTrajectoryGenerator.TrajGeneration(waypoints);
+
+  // 复制并扩展轨迹5次
+  traj_msg.points.clear();
+  const ros::Duration cycle_duration = 
+      base_traj.points.back().time_from_start;
+  
+  for (int i = 0; i < loop_num; i++) {
+    for (const auto& pt : base_traj.points) {
+      quadrotor_common::TrajectoryPoint new_pt = pt;
+      // 延长时间戳
+      new_pt.time_from_start += cycle_duration * i;
+      traj_msg.points.push_back(new_pt);
+    }
+  }
+
+  // 更新轨迹元数据
+  traj_msg.timestamp = ros::Time::now();
+  traj_msg.trajectory_type = 
+      quadrotor_common::Trajectory::TrajectoryType::SNAP;
   trajectory_generation_helper::heading::addForwardHeading(&traj_msg);
 
   for (const auto &point : traj_msg.points) {

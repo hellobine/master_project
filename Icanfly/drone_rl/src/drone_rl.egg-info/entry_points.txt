@@ -1,0 +1,4 @@
+[console_scripts]
+run_trained_model = drone_rl.run_trained_model:main
+train_ppo = drone_rl.train_ppo:main
+

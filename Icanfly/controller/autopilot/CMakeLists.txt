@@ -12,6 +12,11 @@ cs_add_executable(autopilot
     src/autopilot_node.cpp
 )
 
+
+# add_library(autopilot src/my_library.cpp)
+# target_link_libraries(my_library ${catkin_LIBRARIES})
+
+
 # cs_add_library(autopilot_helper
 #     src/autopilot_helper.cpp
 # )

@@ -34,10 +34,10 @@ int main(int argc, char** argv) {
   while (ros::ok()) {
 
     if (autopilot_helper.getCurrentAutopilotState() == autopilot::States::HOVER) {
-        if(flag==0){
-          flag+=1;
+        // if(flag==0){
+          // flag+=1;
           autopilot_helper.sendTrajectory(traj_msg);
-        }  
+        // }  
     }
     ros::spinOnce();  // **保持 ROS 事件循环，防止节点退出**
     rate.sleep();
