@@ -73,21 +73,46 @@ class LQRController
       const quadrotor_common::Trajectory& reference_trajectory,
       const LQRControllerParams& config);
     
+    Eigen::VectorXd quadrotorDynamics(const Eigen::VectorXd &x, const Eigen::VectorXd &u, double dt);
 
+    void finiteDifferenceDynamics(const Eigen::VectorXd &x, const Eigen::VectorXd &u, double dt,
+      Eigen::MatrixXd &A, Eigen::MatrixXd &B);
+    
+    double runningCost(const Eigen::VectorXd &x, const Eigen::VectorXd &u,
+        const Eigen::VectorXd &x_ref, const Eigen::VectorXd &u_ref,
+        const Eigen::MatrixXd &Q, const Eigen::MatrixXd &R);
+
+    double finalCost(const Eigen::VectorXd &x, const Eigen::VectorXd &x_ref,
+      const Eigen::MatrixXd &Qf);    
+
+    void runningCostDerivatives(const Eigen::VectorXd &x, const Eigen::VectorXd &u,
+      const Eigen::VectorXd &x_ref, const Eigen::VectorXd &u_ref,
+      const Eigen::MatrixXd &Q, const Eigen::MatrixXd &R,
+      Eigen::VectorXd &l_x, Eigen::VectorXd &l_u,
+      Eigen::MatrixXd &l_xx, Eigen::MatrixXd &l_uu,
+      Eigen::MatrixXd &l_ux);
+
+    void finalCostDerivatives(const Eigen::VectorXd &x, const Eigen::VectorXd &x_ref,
+      const Eigen::MatrixXd &Qf,
+      Eigen::VectorXd &l_x, Eigen::MatrixXd &l_xx);
+
+    void iLQR(const Eigen::VectorXd &x0, std::vector<Eigen::VectorXd> &u_seq, int horizon, double dt,
+      const std::vector<Eigen::VectorXd> &x_ref_traj, const std::vector<Eigen::VectorXd> &u_ref_traj,
+      const Eigen::MatrixXd &Q, const Eigen::MatrixXd &R, const Eigen::MatrixXd &Qf,
+      std::vector<Eigen::VectorXd> &x_seq_out, std::vector<Eigen::VectorXd> &u_seq_out);
 
   private:
+    ros::NodeHandle nh_;
+    ros::NodeHandle nh_private_;
 
-    
-    //------------------------------------------------------
-    int n_, m_;
+    const int state_dim = 10;   // [p_x, p_y, p_z, q_w, q_x, q_y, q_z, v_x, v_y, v_z]
+    const int control_dim = 4;  // [T, w_x, w_y, w_z]
+    const double g_z = 9.8066;  
+ 
     MatrixXd A_, B_, Q_, R_, P_, K_;
-    VectorXd x0_;
-
-    //------------------------------------------------------
 
     const double grav_val_ = 9.8;
-    double hover_throttle_=0.7;
-    // mass = 0.716
+    double hover_throttle_=0.7; // mass = 0.716
     double drag_const_;
 
     double max_pos_err_;
@@ -101,25 +126,6 @@ class LQRController
     double min_throttle_c_;
     double max_omega_c_;
     double min_omega_c_;
-
-    double start_time_ = 0.;
-    double current_time_ = 0.;
-
-    // ErrStateErrStateMatrix A_;
-    // ErrStateInputMatrix B_;
-    // ErrStateErrStateMatrix Q_;
-    // InputInputMatrix R_;
-
-    // ErrStateErrStateMatrix P_;
-    // InputErrStateMatrix K_;
-    CareSolver<dxZ, uZ> care_solver;
-
-    StateVector x_;
-    StateVector x_c_;
-    ErrStateVector delta_x_;
-
-    InputVector u_;
-    InputVector ur_;
 
     void saturateInput(Eigen::VectorXd &u);
     void saturateErrorVec(Eigen::Vector3d &err, double max_err);
@@ -135,26 +141,6 @@ class LQRController
           const quadrotor_common::TrajectoryPoint& ref);
 
     VectorXd constructReferenceVector(const quadrotor_common::TrajectoryPoint& ref);
-
-
-    // Trajectory Stuff
-    bool use_fig8_ = false;
-    std::unique_ptr<Figure8> fig8_traj_ = nullptr;
-    bool use_waypoints_ = false;
-    std::unique_ptr<WaypointTrajectory<5>> wp_traj_ = nullptr;
-
-    // Logger
-    std::unique_ptr<Logger> log_ = nullptr;
-
-    // ROS stuff
-    // Node handles, publishers, subscribers
-    ros::NodeHandle nh_;
-    ros::NodeHandle nh_private_;
-
-    // Publishers and Subscribers
-    ros::Subscriber state_sub_;
-    ros::Publisher command_pub_;
-
 };
 
 }
