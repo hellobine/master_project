@@ -53,7 +53,7 @@ AutoPilot<Tcontroller, Tparams>::AutoPilot(const ros::NodeHandle& nh,
       time_last_autopilot_feedback_published_(),
       time_last_control_command_published_(),
       time_last_control_command_computed_() {
-
+        ROS_ERROR("debug ypw ffffffffffffffffffffffff");
   if (!loadParameters()) {
     ROS_ERROR("[%s] Could not load parameters.", pnh_.getNamespace().c_str());
     ros::shutdown();
@@ -950,11 +950,11 @@ void AutoPilot<Tcontroller, Tparams>::reloadParamsCallback(
     // controller and disable the RC without the vehicle going back to hover
     state_before_rc_manual_flight_ = States::OFF;
   }
-  if (!loadParameters()) {
-    ROS_ERROR("[%s] Could not load parameters.", pnh_.getNamespace().c_str());
-    ros::shutdown();
-    return;
-  }
+  // if (!loadParameters()) {
+  //   ROS_ERROR("[%s] Could not load parameters.", pnh_.getNamespace().c_str());
+  //   ros::shutdown();
+  //   return;
+  // }
 
   // Mutex is unlocked because it goes out of scope here
 }
@@ -1594,7 +1594,7 @@ bool AutoPilot<Tcontroller, Tparams>::loadParameters() {
 #undef GET_PARAM
 }
 
-template class AutoPilot<position_controller::PositionController,
-                         position_controller::PositionControllerParams>;
+// template class AutoPilot<position_controller::PositionController,
+//                          position_controller::PositionControllerParams>;
 
 }  // namespace autopilot

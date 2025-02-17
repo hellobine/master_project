@@ -475,7 +475,7 @@ void AutoPilotHelper::generateEightTrajectory(quadrotor_common::Trajectory &traj
 void AutoPilotHelper::generateCircleTrajectory(quadrotor_common::Trajectory &traj_msg) {
   int n_loops = 5;
   double exec_loop_rate = 100.0;
-  double circle_velocity = 3.0;
+  double circle_velocity = 0.5;
   double radius = 4.0;
   Eigen::Vector3d circle_center = Eigen::Vector3d(0,-4,3);
 
