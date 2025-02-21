@@ -7,7 +7,7 @@
 #include <nav_msgs/Odometry.h>
 #include <sensor_msgs/Imu.h>
 #include <dynamic_reconfigure/server.h>
-#include <lqr_controller/Figure8Config.h>
+// #include <lqr_controller/Figure8Config.h>
 
 #include <quadrotor_common/control_command.h>
 #include <quadrotor_common/quad_state_estimate.h>

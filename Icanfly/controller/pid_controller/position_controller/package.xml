@@ -10,12 +10,13 @@
   <author>Matthias Faessler</author>
 
   <buildtool_depend>catkin</buildtool_depend>
-  <buildtool_depend>catkin_simple</buildtool_depend>
+  <!-- <buildtool_depend>catkin_simple</buildtool_depend> -->
 
   <depend>eigen_catkin</depend>
   <depend>quadrotor_common</depend>
   <depend>roscpp</depend>
   <depend>autopilot</depend>
+
   <export>
 
   </export>

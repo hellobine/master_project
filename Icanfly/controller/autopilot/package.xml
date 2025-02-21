@@ -15,7 +15,7 @@
   <depend>eigen_catkin</depend>
   <depend>geometry_msgs</depend>
   <depend>nav_msgs</depend>
-  <depend>position_controller</depend>
+  <!-- <depend>position_controller</depend> -->
   <depend>quadrotor_common</depend>
   <depend>quadrotor_msgs</depend>
   <depend>roscpp</depend>

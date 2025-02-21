@@ -23,8 +23,8 @@ find_package(Eigen3 REQUIRED)
 add_subdirectory(lib/geometry)
 add_subdirectory(lib/lin_alg_tools)
 
-generate_dynamic_reconfigure_options(
-  cfg/Figure8.cfg)
+# generate_dynamic_reconfigure_options(
+#   cfg/Figure8.cfg)
 
 catkin_package(
   INCLUDE_DIRS include ${EIGEN3_INCLUDE_DIRS}
@@ -48,7 +48,9 @@ include_directories(
 add_executable(lqr_controller
   src/lqr_controller.cpp
   src/autopilot_lqr_instance.cpp)
+
 add_dependencies(lqr_controller autopilot ${catkin_EXPORTED_TARGETS}
   %{PROJECT_NAME}_gencfg)
+
 target_link_libraries(lqr_controller ${catkin_LIBRARIES} lin_alg_tools)
 

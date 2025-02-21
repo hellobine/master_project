@@ -717,16 +717,16 @@ void AutoPilot<Tcontroller, Tparams>::referenceStateCallback(
 template <typename Tcontroller, typename Tparams>
 void AutoPilot<Tcontroller, Tparams>::trajectoryCallback(
     const quadrotor_msgs::Trajectory::ConstPtr& msg) {
-      ROS_WARN(
-        "giaogiao trajectoryCallback First received trajectory segment does not start at current "
-        "position, will ignore trajectory");
+      // ROS_WARN(
+      //   "giaogiao trajectoryCallback First received trajectory segment does not start at current "
+      //   "position, will ignore trajectory");
   if (destructor_invoked_) {
     return;
   }
 
-  ROS_WARN(
-          "giaogiao trajectoryCallback First received trajectory segment does not start at current "
-          "position, will ignore trajectory");
+  // ROS_WARN(
+  //         "giaogiao trajectoryCallback First received trajectory segment does not start at current "
+  //         "position, will ignore trajectory");
 
   std::lock_guard<std::mutex> main_lock(main_mutex_);
 
