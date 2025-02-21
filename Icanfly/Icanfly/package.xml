@@ -33,7 +33,7 @@
   <depend>autopilot</depend>
   <depend>quadrotor_msgs</depend>
   <!-- <depend>mini_snap_trajectory_generator</depend> -->
-
+  <!-- <depend>std_srvs</depend> -->
   <!-- <depend>rpg_quadrotor_control</depend> -->
   
   <!-- <depend>rpg_mpc</depend> -->

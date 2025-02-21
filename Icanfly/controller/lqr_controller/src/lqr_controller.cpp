@@ -6,6 +6,7 @@
 #include <Eigen/Eigenvalues>
 #include <stdexcept>
 #include <chrono>
+#include <list>
 
 using namespace std::chrono;
 
@@ -431,13 +432,43 @@ quadrotor_common::ControlCommand* command)
 
   // 4. 定义 iLQR 参数：时域步长 dt 和步数 horizon
   double dt = 0.1;
-  int horizon = 10;
+  int horizon = 15;
 
   // 5. 构造参考轨迹：假设恒定参考
   std::vector<Eigen::VectorXd> x_ref_traj(horizon+1, x_ref);
   std::vector<Eigen::VectorXd> u_ref_traj(horizon, u_eq);
   // 6. 初始控制序列：全部设为 u_eq
   std::vector<Eigen::VectorXd> u_seq(horizon, u_eq);
+
+
+
+  // // 5. 构造状态参考轨迹 x_ref_traj
+  // std::vector<Eigen::VectorXd> x_ref_traj;
+  // int x_ref_traj_t = 0;
+  // for (const auto &traj_point : reference_state.points) {
+  //     if (x_ref_traj_t > horizon)
+  //         break;
+  //     Eigen::VectorXd x_ref = constructReferenceVector(traj_point);
+  //     x_ref_traj.push_back(x_ref);
+  //     ++x_ref_traj_t;
+  // }
+
+
+
+  // 3. 构造控制参考序列 u_ref_traj
+  // std::vector<Eigen::VectorXd> u_ref_traj;
+  // int u_ref_traj_t = 0;
+  // for (const auto &traj_point : reference_state.points) {
+  //   if (u_ref_traj_t > horizon-9)
+  //       break;
+  //   double T_ref = computeReferenceThrust(traj_point);
+  //   Eigen::VectorXd u_ref(control_dim);
+  //   u_ref << T_ref, 0.0, 0.0, 0.0;
+  //   u_ref_traj.push_back(u_ref);
+  //   ++u_ref_traj_t;
+  // }
+
+  // std::vector<Eigen::VectorXd> u_seq = u_ref_traj;
 
   // 7. 调用 iLQR 算法进行轨迹优化
   std::vector<Eigen::VectorXd> x_seq_out;

@@ -22,9 +22,9 @@ int main(int argc, char** argv) {
 
 
   quadrotor_common::Trajectory traj_msg;
-  // autopilot_helper.generateEightTrajectory(traj_msg);
+  autopilot_helper.generateEightTrajectory(traj_msg);
   // autopilot_helper.generateCircleTrajectory(traj_msg);
-  autopilot_helper.generateCurveTrajectory(traj_msg);
+  // autopilot_helper.generateCurveTrajectory(traj_msg);
 
   int flag=0;
 

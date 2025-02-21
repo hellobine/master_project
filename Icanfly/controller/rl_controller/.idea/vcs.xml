@@ -1,0 +1,15 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<project version="4">
+  <component name="VcsDirectoryMappings">
+    <mapping directory="$PROJECT_DIR$/../../.." vcs="Git" />
+    <mapping directory="$PROJECT_DIR$/../../trajectory_planning/minimum_jerk_trajectories" vcs="Git" />
+    <mapping directory="$PROJECT_DIR$/../../../catkin_boost_python_buildtool" vcs="Git" />
+    <mapping directory="$PROJECT_DIR$/../../../eigen_catkin" vcs="Git" />
+    <mapping directory="$PROJECT_DIR$/../../../eigen_checks" vcs="Git" />
+    <mapping directory="$PROJECT_DIR$/../../../gflags_catkin" vcs="Git" />
+    <mapping directory="$PROJECT_DIR$/../../../minkindr" vcs="Git" />
+    <mapping directory="$PROJECT_DIR$/../../../numpy_eigen" vcs="Git" />
+    <mapping directory="$PROJECT_DIR$/../../../rpg_common" vcs="Git" />
+    <mapping directory="$PROJECT_DIR$/../../../rpg_quadrotor_common" vcs="Git" />
+  </component>
+</project>
