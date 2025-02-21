@@ -9,6 +9,5 @@ int main(int argc, char **argv) {
       autopilot;
 
   ros::spin();
-
   return 0;
 }

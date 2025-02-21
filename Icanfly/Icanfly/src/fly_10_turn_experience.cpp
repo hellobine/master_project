@@ -20,11 +20,10 @@ int main(int argc, char** argv) {
   // 初始化 AutoPilotHelper
   autopilot_helper::AutoPilotHelper autopilot_helper(nh, private_nh);
 
-
   quadrotor_common::Trajectory traj_msg;
-  // autopilot_helper.generateEightTrajectory(traj_msg);
+  autopilot_helper.generateEightTrajectory(traj_msg);
   // autopilot_helper.generateCircleTrajectory(traj_msg);
-  autopilot_helper.generateCurveTrajectory(traj_msg);
+  // autopilot_helper.generateCurveTrajectory(traj_msg);
 
   int flag=0;
 

@@ -15,7 +15,6 @@ quadrotor_common::ControlCommand PositionController::off() {
   quadrotor_common::ControlCommand command;
 
   command.zero();
-
   return command;
 }
 
@@ -63,6 +62,7 @@ quadrotor_common::ControlCommand PositionController::run(
                                 pow(state_estimate.velocity.y(), 2.0));
   }
 
+  // add by ypw
   // 将四元数转换为旋转矩阵
   Eigen::Matrix3d R = reference_state.orientation.toRotationMatrix();
 
@@ -72,17 +72,10 @@ quadrotor_common::ControlCommand PositionController::run(
   Eigen::Vector3d x_proj(x_axis.x(), x_axis.y(), 0.0); // 投影到水平面
   x_proj.normalize();                     // 归一化
 
-  // 计算投影方向与全局X轴的夹角（即航向角）
-  // return std::atan2(x_proj.y(), x_proj.x());
-
-  // const Eigen::Quaterniond desired_attitude =
-  //     computeDesiredAttitude(desired_acceleration, reference_state.heading,
-  //                            state_estimate.orientation);
-
   const Eigen::Quaterniond desired_attitude =
     computeDesiredAttitude(desired_acceleration, std::atan2(x_proj.y(), x_proj.x()),
                         state_estimate.orientation);
-                        
+
   const Eigen::Vector3d feedback_bodyrates = computeFeedBackControlBodyrates(
       desired_attitude, state_estimate.orientation, config);
 
@@ -101,11 +94,8 @@ quadrotor_common::ControlCommand PositionController::run(
 
   command.angular_accelerations = reference_inputs.angular_accelerations;
 
-  // publishTrajectoryMarkers(reference_state);
-
   return command;
 }
-
 
 
 quadrotor_common::ControlCommand
@@ -499,45 +489,6 @@ Eigen::Quaterniond PositionController::computeDesiredAttitude(
 }
 
 
-// Eigen::Quaterniond PositionController::computeDesiredAttitude(
-//     const Eigen::Vector3d& desired_acceleration, const double reference_heading,
-//     const Eigen::Quaterniond& attitude_estimate) const {
-//   const Eigen::Quaterniond q_heading = Eigen::Quaterniond(
-//       Eigen::AngleAxisd(reference_heading, Eigen::Vector3d::UnitZ()));
-
-//   // Compute desired orientation
-//   const Eigen::Vector3d x_C = q_heading * Eigen::Vector3d::UnitX();
-//   const Eigen::Vector3d y_C = q_heading * Eigen::Vector3d::UnitY();
-
-//   Eigen::Vector3d z_B;
-//   // if (almostZero(desired_acceleration.norm())) {
-//   //   // In case of free fall we keep the thrust direction to be the estimated one
-//   //   // This only works assuming that we are in this condition for a very short
-//   //   // time (otherwise attitude drifts)
-//   //   z_B = attitude_estimate * Eigen::Vector3d::UnitZ();
-//   // } else {
-//     z_B = desired_acceleration.normalized();
-//   // }
-
-//   const Eigen::Vector3d x_B_prototype = y_C.cross(z_B);
-//   const Eigen::Vector3d x_B =
-//       computeRobustBodyXAxis(x_B_prototype, x_C, y_C, attitude_estimate);
-
-//   const Eigen::Vector3d y_B = (z_B.cross(x_B)).normalized();
-
-//   // From the computed desired body axes we can now compose a desired attitude
-//   const Eigen::Matrix3d R_W_B((Eigen::Matrix3d() << x_B, y_B, z_B).finished());
-
-//   const Eigen::Quaterniond desired_attitude(R_W_B);
-
-//   // 打印 q_heading 和 desired_attitude 四元数信息
-//   ROS_INFO("q_heading: [w: %f, x: %f, y: %f, z: %f]",
-//     q_heading.w(), q_heading.x(), q_heading.y(), q_heading.z());
-//   ROS_INFO("desired_attitude: [w: %f, x: %f, y: %f, z: %f]",
-//     desired_attitude.w(), desired_attitude.x(), desired_attitude.y(), desired_attitude.z());
-
-//   return desired_attitude;
-// }
 
 Eigen::Vector3d PositionController::computeRobustBodyXAxis(
     const Eigen::Vector3d& x_B_prototype, const Eigen::Vector3d& x_C,
