@@ -10,8 +10,8 @@ import matplotlib.pyplot as plt
 
 class PPOTrainer:
     def __init__(self, env, gamma=0.99, lambda_=0.95, clip_eps=0.2, 
-                 actor_lr=3e-4, critic_lr=3e-4, batch_size=64, epochs=30, 
-                 train_steps=100000, std=0.5, model_path="ppo_quadrotor.pth"):
+                 actor_lr=1e-3, critic_lr=1e-3, batch_size=64, epochs=30, 
+                 train_steps=10000000, std=0.5, model_path="ppo_quadrotor.pth"):
 
         mass = 0.68 + 0.009 * 4.0    # 约 0.716 kg
         g = 9.8
@@ -136,6 +136,10 @@ class PPOTrainer:
                 episode_reward += reward
                 global_step += 1
 
+                # 保存模型：每训练10000次 train_step 保存一次
+                if global_step % 10000 == 0:
+                    self.save()
+
                 if done:
                     state = self.env.reset()
                     ep_rewards.append(episode_reward)
@@ -193,72 +197,3 @@ class PPOTrainer:
         print(f"Model loaded from {self.model_path}")
 
 
-
-    def rollout(self, rollout_steps):
-        """
-        单个 rollout 过程，采样 rollout_steps 步数据。
-        每个 rollout 内部创建自己的环境实例，避免线程间干扰。
-        """
-        # 每个线程自己创建环境实例
-        local_env = QuadrotorEnv()
-        states, actions, rewards, dones, values, log_probs = [], [], [], [], [], []
-        state = local_env.reset()
-        for _ in range(rollout_steps):
-            # 获取当前状态对应的值函数估计
-            state_tensor = torch.FloatTensor(state).unsqueeze(0).to(self.device)
-            value = self.critic(state_tensor).item()
-            action, log_prob = self.get_action(state)
-            next_state, reward, done, _ = local_env.step(action)
-            
-            states.append(state)
-            actions.append(action)
-            rewards.append(reward)
-            dones.append(float(done))
-            values.append(value)
-            log_probs.append(log_prob)
-            
-            state = next_state
-            if done:
-                state = local_env.reset()
-        return states, actions, rewards, dones, values, log_probs
-
-
-    def train_multi_thread(self):
-        state = self.env.reset()
-        global_step = 0
-        ep_rewards = []
-        # 定义并行的 worker 数量
-        num_workers = 10
-        rollout_steps = self.batch_size // num_workers  # 每个 worker 采样的步数
-        
-        while global_step < self.train_steps:
-            buffer_states, buffer_actions, buffer_rewards, buffer_dones, buffer_values, buffer_log_probs = [], [], [], [], [], []
-            # 并行采样
-            with concurrent.futures.ThreadPoolExecutor(max_workers=num_workers) as executor:
-                futures = [executor.submit(self.rollout, rollout_steps) for _ in range(num_workers)]
-                for future in concurrent.futures.as_completed(futures):
-                    states, actions, rewards, dones, values, log_probs = future.result()
-                    buffer_states.extend(states)
-                    buffer_actions.extend(actions)
-                    buffer_rewards.extend(rewards)
-                    buffer_dones.extend(dones)
-                    buffer_values.extend(values)
-                    buffer_log_probs.extend(log_probs)
-                    ep_rewards.append(sum(rewards))
-                    global_step += len(states)
-            
-            # 计算 GAE 和 Returns
-            state_tensor = torch.FloatTensor(state).unsqueeze(0).to(self.device)
-            next_value = self.critic(state_tensor).item()
-            buffer_values = np.array(buffer_values, dtype=np.float32)
-            buffer_rewards = np.array(buffer_rewards, dtype=np.float32)
-            buffer_dones = np.array(buffer_dones, dtype=np.float32)
-            advantages = self.compute_gae(buffer_rewards, buffer_dones, buffer_values, np.append(buffer_values[1:], next_value))
-            returns = advantages + buffer_values
-
-            # PPO 更新
-            self.ppo_update(buffer_states, buffer_actions, advantages, returns, buffer_log_probs)
-
-            if global_step % (self.batch_size * 10) == 0:
-                avg_reward = np.mean(ep_rewards[-10:]) if len(ep_rewards) >= 10 else np.mean(ep_rewards)
-                print("Global step:", global_step, "Average episode reward:", avg_reward)

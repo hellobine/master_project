@@ -18,11 +18,11 @@ class Actor(nn.Module):
         :param angular_scale: 角速率缩放因子
         """
         super(Actor, self).__init__()
-        self.fc1 = nn.Linear(state_dim, 128)
+        self.fc1 = nn.Linear(state_dim, 64)
         nn.init.orthogonal_(self.fc1.weight, gain=np.sqrt(2))
-        self.fc2 = nn.Linear(128, 128)
+        self.fc2 = nn.Linear(64, 64)
         nn.init.orthogonal_(self.fc2.weight, gain=np.sqrt(2))
-        self.mu = nn.Linear(128, action_dim)
+        self.mu = nn.Linear(64, action_dim)
         nn.init.orthogonal_(self.mu.weight, gain=0.01)
 
         self.lower_bound = lower_bound  # 推力下限
@@ -42,11 +42,11 @@ class Actor(nn.Module):
 class Critic(nn.Module):
     def __init__(self, state_dim):
         super().__init__()
-        self.fc1 = nn.Linear(state_dim, 128)
+        self.fc1 = nn.Linear(state_dim, 64)
         nn.init.orthogonal_(self.fc1.weight, gain=np.sqrt(2))
-        self.fc2 = nn.Linear(128, 128)
+        self.fc2 = nn.Linear(64, 64)
         nn.init.orthogonal_(self.fc2.weight, gain=np.sqrt(2))
-        self.value = nn.Linear(128, 1)
+        self.value = nn.Linear(64, 1)
         nn.init.orthogonal_(self.value.weight, gain=1.0)
 
     def forward(self, x):

@@ -23,6 +23,10 @@ catkin_install_python(PROGRAMS
   scripts/rl_trainer.py
   scripts/environment.py
   scripts/network.py
+  scripts/stable_baseline3_env.py
+  scripts/stable_baseline3_train.py
+  scripts/stable_baseline3_policy.py
+
   DESTINATION ${CATKIN_PACKAGE_BIN_DESTINATION}
 )
 

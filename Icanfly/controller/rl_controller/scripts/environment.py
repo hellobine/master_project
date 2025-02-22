@@ -11,6 +11,7 @@ from nav_msgs.msg import Odometry
 from quadrotor_msgs.msg import ControlCommand
 from std_srvs.srv import Empty
 from gazebo_msgs.msg import ModelState
+from threading import Lock
 
 class QuadrotorEnv(gym.Env):
     def __init__(self):
@@ -20,7 +21,7 @@ class QuadrotorEnv(gym.Env):
         super(QuadrotorEnv, self).__init__()
 
         # --------------- 1. 定义状态与动作空间 ---------------
-        self.state_dim = 10   # [p_x, p_y, p_z, q_x, q_y, q_z, q_w, v_x, v_y, v_z]
+        self.state_dim = 10   # [p_x, p_y, p_z, q_w, q_x, q_y, q_z, v_x, v_y, v_z]
         self.action_dim = 4   # [T, ω_x, ω_y, ω_z]
 
         obs_high = np.array([np.inf] * self.state_dim, dtype=np.float32)
@@ -44,31 +45,32 @@ class QuadrotorEnv(gym.Env):
 
         # --------------- 3. 初始化内部状态 ---------------
         self.current_state = np.zeros(self.state_dim, dtype=np.float32)
-        self.desired_state = np.array([0, 0, 3, 0, 0, 0, 1, 0, 0, 0], dtype=np.float32)
+        self.desired_state = np.array([0, 0, 3, 1, 0, 0, 0, 0, 0, 0], dtype=np.float32)
         self.episode_time = 0.0
-        self.max_episode_time = 5.0   # 限制每个 episode 最长 5 秒
+        self.max_episode_time = 10.0   # 限制每个 episode 最长 5 秒
 
 
-        self.max_position_error = 5.0  # 例如，允许偏差超过 5 米则重置
+        self.max_position_error = 3  # 例如，允许偏差超过 5 米则重置
 
-        self.max_position_error = 5.0  # 位置偏差阈值（米）
+        self.max_position_error = 3  # 位置偏差阈值（米）
         self.flip_threshold = 1.0      # 侧翻判断阈值，修改为 1.0 rad（约57°）
         self.min_velocity = 0.1        # 低速阈值（m/s）
         self.flip_time_limit = 10     # 持续侧翻+低速状态的时间限制（秒）
         self.flip_timer = 0.0          # 累计时间
 
+        self.state_lock = Lock()
 
     def odom_callback(self, msg):
         """
         解析无人机的里程计信息（Odometry）。
         """
-        p_x, p_y, p_z = msg.pose.pose.position.x, msg.pose.pose.position.y, msg.pose.pose.position.z
-        q_x, q_y, q_z, q_w = msg.pose.pose.orientation.x, msg.pose.pose.orientation.y, msg.pose.pose.orientation.z, msg.pose.pose.orientation.w
-        v_x, v_y, v_z = msg.twist.twist.linear.x, msg.twist.twist.linear.y, msg.twist.twist.linear.z
+        with self.state_lock:
+            p_x, p_y, p_z = msg.pose.pose.position.x, msg.pose.pose.position.y, msg.pose.pose.position.z
+            q_x, q_y, q_z, q_w = msg.pose.pose.orientation.x, msg.pose.pose.orientation.y, msg.pose.pose.orientation.z, msg.pose.pose.orientation.w
+            v_x, v_y, v_z = msg.twist.twist.linear.x, msg.twist.twist.linear.y, msg.twist.twist.linear.z
 
-        # print("p_x   -> "+str(p_x))
 
-        self.current_state = np.array([p_x, p_y, p_z, q_x, q_y, q_z, q_w, v_x, v_y, v_z], dtype=np.float32)
+            self.current_state = np.array([p_x, p_y, p_z, q_w, q_x, q_y, q_z, v_x, v_y, v_z], dtype=np.float32)
 
     def step(self, action):
         """
@@ -89,9 +91,13 @@ class QuadrotorEnv(gym.Env):
             done = True
             print(f"Reset triggered due to large position error: {pos_error:.2f} m")
         elif pos_error < 0.2:
-            reward += 1000.0  # 额外奖励，根据需要调整
+            reward += 100.0  # 额外奖励，根据需要调整
             done = True
             print("Target reached: episode terminated successfully.")
+        # elif self.current_state[0:3][2] - self.desired_state[0:3][2]>3:
+        #     reward -= 100.0  # 额外奖励，根据需要调整
+        #     print("too higher stop!!.")
+        #     done = True
         else:
             done = self.episode_time >= self.max_episode_time
 
@@ -106,7 +112,9 @@ class QuadrotorEnv(gym.Env):
             self._reset_drone_pose()  # 重置控制器状态
             print("World reset successfully!")
             # 建议增加短暂延时确保物理引擎稳定
-            rospy.sleep(1.5)  
+            rospy.sleep(1)  
+            while np.linalg.norm(self.current_state[7:10]) > 0.1:  # 等待速度接近零
+                rospy.sleep(0.1)
         except rospy.ServiceException as e:
             print(f"World reset failed: {e}")
 
@@ -156,6 +164,9 @@ class QuadrotorEnv(gym.Env):
         command.bodyrates.x = action[1]
         command.bodyrates.y = action[2]
         command.bodyrates.z = action[3]
+        # command.bodyrates.x = 0
+        # command.bodyrates.y = 0
+        # command.bodyrates.z = 0
         print("collective_thrust   -> "+str(command.collective_thrust))
         # 发布正确类型的控制命令
         self.cmd_pub.publish(command)
@@ -164,23 +175,21 @@ class QuadrotorEnv(gym.Env):
         """
         获取当前观测状态，可以是状态误差或原始状态。
         """
-        return self.current_state
+        with self.state_lock:
+            return self.current_state.copy()
 
-    # def _compute_reward(self, obs):
-    #     """
-    #     计算奖励，包括位置误差、速度误差、姿态误差等。
-    #     """
-    #     pos_error = np.linalg.norm(obs[0:3])  # 位置误差
-    #     quat_error = 2 * np.arccos(np.clip(np.abs(obs[3:7].dot(self.desired_state[3:7])), -1.0, 1.0))  # 四元数误差
-    #     vel_error = np.linalg.norm(obs[7:10])  # 速度误差
-
-    #     # 调整权重，尝试使位置误差更敏感
-    #     error = 3 * pos_error + 0.5 * quat_error + 0.1 * vel_error
-
-    #     # 使用反比函数作为奖励信号
-    #     reward = 1.0 / (error + 1.0)
-
-    #     return reward
+    def quaternion_error(self, q1, q2):
+        """
+        计算两个单位四元数 q1 和 q2 的角度误差（弧度）。
+        这里利用公式：θ = 2 * arccos(|<q1, q2>|)
+        """
+        # 计算内积
+        dot = np.abs(np.dot(q1, q2))
+        # 限制内积范围，防止数值误差
+        dot = np.clip(dot, -1.0, 1.0)
+        # 计算角误差
+        theta = 2 * np.arccos(dot)
+        return theta
 
     def _compute_reward(self, obs):
         """
@@ -190,54 +199,30 @@ class QuadrotorEnv(gym.Env):
         """
         # 从观察值中提取当前位置和速度
         pos = obs[0:3]
+        q = obs[3:7]            # 姿态：四元数 [w, x, y, z]
         vel = obs[7:10]
         
         # 目标位置，例如 [0, 0, 3]
         target_pos = self.desired_state[0:3]
+        target_q = self.desired_state[3:7]
+        
         pos_error = np.linalg.norm(pos - target_pos)
         
+        # 计算四元数误差（角度误差，以弧度为单位）
+        att_error = self.quaternion_error(q, target_q)
+    
         # 期望速度为零（例如在悬停或稳定着陆时）
         vel_error = np.linalg.norm(vel)
         
-        # 权重参数（这些参数需要根据具体任务进行调节）
-        alpha = 3.0  # 位置误差权重
-        beta = 5.0   # 速度误差权重
-        # 若有控制输入成本，可以设置 gamma，对应 u 的平方（这里没有使用）
-        # gamma = 0.01
-        
-        # 基础奖励为负的误差平方和
-        reward = - (alpha * pos_error**2 + beta * vel_error**2)
-        
-        # 如果位置误差足够小（例如小于 0.2 米），则给予额外奖励
-        if pos_error < 0.6 and (target_pos[2] - pos[2]) > 0.1:
-            reward += 1000.0
+        # 权重参数（根据具体任务进行调节）
+        alpha = 5.0   # 位置误差权重
+        beta = 3.0    # 速度误差权重
+        gamma = 2.0   # 姿态误差权重
 
+        reward = - (alpha * pos_error**2 + beta * vel_error**2 + gamma * att_error**2)
+        
         return reward
 
-    # def _compute_reward(self, obs):
-    #     # 提取位置和速度
-    #     pos = obs[0:3]
-    #     vel = obs[7:10]
-        
-    #     # 目标位置
-    #     target_pos = self.desired_state[0:3]
-    #     pos_error = np.linalg.norm(pos - target_pos)
-    #     vel_error = np.linalg.norm(vel)
-        
-    #     # 权重参数
-    #     alpha = 1.0  # 用于位置误差指数函数的系数
-    #     beta = 1.0   # 速度误差权重
-        
-    #     # 位置奖励：当位置误差为0时，指数值为1；误差越大，奖励指数值迅速减小
-    #     reward_pos = np.exp(-alpha * pos_error**2)
-        
-    #     # 速度惩罚：这里简单地用速度误差的平方来惩罚
-    #     reward_vel = - beta * vel_error**2
-        
-    #     # 总奖励为位置奖励加上速度惩罚
-    #     reward = reward_pos + reward_vel
-
-    #     return reward
 
     def render(self, mode='human'):
         """
