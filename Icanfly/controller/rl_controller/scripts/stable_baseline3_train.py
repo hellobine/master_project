@@ -11,10 +11,10 @@ import matplotlib.pyplot as plt
 class SB3PPOTrainer:
     def __init__(self, env, total_timesteps=1e6, batch_size=64, n_steps=1024,
                  gamma=0.99, gae_lambda=0.95, clip_range=0.2, ent_coef=0.01,
-                 learning_rate=3e-4, model_path="sb3_ppo_quadrotor"):
+                 learning_rate=1e-4, model_path="sb3_ppo_quadrotor"):
         
         self.mass = 0.716
-        self.min_thrust = self.mass * 9.81 - 1
+        self.min_thrust = 0
         self.max_thrust = 4 * self.mass * 9.81
         self.angular_scale = 3.0
         

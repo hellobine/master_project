@@ -53,7 +53,7 @@ class CustomActorCriticPolicy(ActorCriticPolicy):
                  observation_space: gym.spaces.Space, 
                  action_space: gym.spaces.Space, 
                  lr_schedule, 
-                 min_thrust: float = 7.02, 
+                 min_thrust: float = 0, 
                  max_thrust: float = 28.1, 
                  angular_scale: float = 3.0,
                  **kwargs):

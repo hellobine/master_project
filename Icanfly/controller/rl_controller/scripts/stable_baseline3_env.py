@@ -19,12 +19,12 @@ class QuadrotorEnv(gym.Env):
         # 物理参数
         self.mass = 0.716  # kg (无人机 + 电池)
         self.gravity = 9.81
-        self.min_thrust = self.mass * self.gravity - 1  # 7.02 N
+        self.min_thrust = 0  # 7.02 N
         self.max_thrust = 4 * self.mass * self.gravity  # 28.1 N
         self.max_angular_rate = 3.0  # rad/s
 
         # Gym 空间定义
-        self.state_dim = 10  # [px, py, pz, qx, qy, qz, qw, vx, vy, vz]
+        self.state_dim = 13  # [px, py, pz, qx, qy, qz, qw, vx, vy, vz]
         self.action_dim = 4  # [推力, ωx, ωy, ωz]
         
         self.observation_space = spaces.Box(
@@ -50,14 +50,16 @@ class QuadrotorEnv(gym.Env):
         self.control_hz = 100.0
         self.rate = rospy.Rate(self.control_hz)
         self.current_state = np.zeros(self.state_dim, dtype=np.float32)
-        self.desired_state = np.array([0, 0, 3, 0, 0, 0, 1, 0, 0, 0], dtype=np.float32)
+        self.desired_state = np.array([0, 0, 3, 0, 0, 0, 1, 0, 0, 0, 0, 0, 0], dtype=np.float32)
         
         # 安全参数
-        self.max_position_error = 4.0  # 米
+        self.max_position_error = 5.0  # 米
         self.max_episode_steps = 1024  # 10秒 @ 20Hz
         self.step_count = 0
 
         self.episode_reward=0
+
+        self.prev_action_ = None
 
     def odom_callback(self, msg):
         with self.state_lock:
@@ -71,7 +73,10 @@ class QuadrotorEnv(gym.Env):
                 msg.pose.pose.orientation.w,
                 msg.twist.twist.linear.x,
                 msg.twist.twist.linear.y,
-                msg.twist.twist.linear.z
+                msg.twist.twist.linear.z,
+                msg.twist.twist.angular.x,
+                msg.twist.twist.angular.y,
+                msg.twist.twist.angular.z
             ], dtype=np.float32)
 
     # def step(self, action):
@@ -92,16 +97,21 @@ class QuadrotorEnv(gym.Env):
 
     def step(self, action):
         self.step_count += 1
+
         self._publish_action(action)
         self.rate.sleep()
         
         with self.state_lock:
             obs = self.current_state.copy()
         
-        reward = self._compute_reward(obs)
+        reward = self._compute_reward(obs, action)
+
+        self.prev_action_ = action
+        
         self.episode_reward += reward  # 逐步累积 reward
 
         done = self._check_done(obs) or self.step_count >= self.max_episode_steps
+
         info = {"reward": reward}  # 每步记录奖励
 
         if done:
@@ -128,9 +138,11 @@ class QuadrotorEnv(gym.Env):
     def _reset_drone_pose(self):
         state = ModelState()
         state.model_name = "hummingbird"
-        state.pose.position.x = np.random.uniform(-1, 1)
-        state.pose.position.y = np.random.uniform(-1, 1)
-        state.pose.position.z = 0
+        # state.pose.position.x = np.random.uniform(-1, 1)
+        # state.pose.position.y = np.random.uniform(-1, 1)
+        state.pose.position.x = 0
+        state.pose.position.y = 0
+        state.pose.position.z = 0.1
         # state.pose.orientation.w = 1.0
         pub = rospy.Publisher('/gazebo/set_model_state', ModelState, queue_size=1)
         pub.publish(state)
@@ -148,24 +160,66 @@ class QuadrotorEnv(gym.Env):
         # cmd.bodyrates.z = 0
         self.cmd_pub.publish(cmd)
 
-    def _compute_reward(self, obs):
-        pos_error = np.linalg.norm(obs[0:3] - self.desired_state[0:3])
-        vel_error = np.linalg.norm(obs[7:10])
-        att_error = 2 * np.arccos(np.clip(np.abs(obs[3:7].dot(self.desired_state[3:7])), -1.0, 1.0))
-        reward = 10.0 - (5.0 * pos_error + 0.5 * vel_error + 0 * att_error)
-        if pos_error < 0.2 and att_error < 0.1:
-            reward += 20.0  # 精确悬停奖励
-        return reward
+    def _compute_reward(self, obs, curr_action):
+        # 假设观测包含：[位置(3), 姿态四元数(4), 线速度(3), 角速度(3), 前一个动作(4)]
+        # 分解观测数据
+        pos = obs[0:3]          # 当前位置
+        quat = obs[3:7]         # 当前姿态（四元数）
+        lin_vel = obs[7:10]     # 线速度
+        ang_vel = obs[10:13]    # 角速度
+        # prev_act = prev_action  # 前一个动作
+        
+        # 目标状态（假设self.desired_state包含目标高度和姿态）
+        z_d = self.desired_state[2]              # 目标高度
+        target_quat = self.desired_state[3:7]    # 目标姿态四元数
+        
+        # 1. 高度奖励 (beta1 = -2e-3)
+        height_error = pos[2] - z_d
+        r_height = -1e-2 * (height_error ** 2)
+    
+        
+        # 2. 姿态奖励：计算姿态矩阵的误差（假设用四元数差代替）
+        att_error = 2 * np.arccos(np.clip(np.abs(quat.dot(target_quat)), -1.0, 1.0))
+        r_attitude = -1e-3 * (att_error **2)
+        
+        # 3. 线速度惩罚：使用平方误差，系数设为 -1e-3
+        vel_penalty = -1e-3 * (np.linalg.norm(lin_vel) ** 2)
+        
+        # 4. 角速度惩罚：使用平方误差，系数设为 -1e-3
+        ang_vel_penalty = -1e-3 * (np.linalg.norm(ang_vel) ** 2)
+        
+        # 5. 动作平滑惩罚：使用平方误差，系数设为 -1e-3
+        if self.prev_action_ is not None:
+            action_diff = np.linalg.norm(curr_action - self.prev_action_)
+            r_act_smooth = -1e-3 * (action_diff ** 2)
+        else:
+            r_act_smooth = 0.0
+    
+        # 6. 成功悬停奖励：当达到所有条件时，给予持续的正奖励
+        success_reward = 0.0
+        if (abs(height_error) < 0.1 and
+            np.linalg.norm(lin_vel) < 0.5 and
+            np.linalg.norm(ang_vel) < 0.1):
+            # 可以给一个较小的正奖励，例如每步 + 1
+            success_reward = 1
+            
+        
+        # 总奖励 = 各项加权和 + 成功奖励
+        total_reward = (
+            r_height + 
+            r_attitude + 
+            vel_penalty + 
+            ang_vel_penalty + 
+            r_act_smooth + 
+            success_reward
+        )
+        
+        return total_reward
 
     def _check_done(self, obs):
         pos_error = np.linalg.norm(obs[0:3] - self.desired_state[0:3])
-        z_axis = 2 * np.array([
-            obs[3]*obs[5] - obs[4]*obs[6],
-            obs[4]*obs[5] + obs[3]*obs[6],
-            obs[6]**2 + obs[3]**2 - 0.5
-        ])
-        tilt = np.arccos(z_axis[2] / np.linalg.norm(z_axis))
-        return pos_error > self.max_position_error or tilt > 0.5  # 侧翻超过28度
+
+        return pos_error > self.max_position_error  
 
     def render(self, mode='human'):
         pass  # Gazebo自带可视化

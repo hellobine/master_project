@@ -71,8 +71,8 @@ if __name__ == "__main__":
         total_timesteps=1_000_0000,
         batch_size=64,
         n_steps=2048,
-        learning_rate=3e-4,
-        ent_coef=0.01,
+        learning_rate=1e-3,
+        # ent_coef=0.01,
         model_path="sb3_quadrotor_hover"
     )
     
