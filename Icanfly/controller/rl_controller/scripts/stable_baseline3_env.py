@@ -21,10 +21,10 @@ class QuadrotorEnv(gym.Env):
         self.gravity = 9.81
         self.min_thrust = 0  # 7.02 N
         self.max_thrust = 4 * self.mass * self.gravity  # 28.1 N
-        self.max_angular_rate = 3.0  # rad/s
+        self.max_angular_rate = 2.0  # rad/s
 
         # Gym 空间定义
-        self.state_dim = 13  # [px, py, pz, qx, qy, qz, qw, vx, vy, vz]
+        self.state_dim = 10  # [px, py, pz, qx, qy, qz, qw, vx, vy, vz]
         self.action_dim = 4  # [推力, ωx, ωy, ωz]
         
         self.observation_space = spaces.Box(
@@ -34,8 +34,8 @@ class QuadrotorEnv(gym.Env):
         self.action_space = spaces.Box(
             low=np.array([self.min_thrust, -self.max_angular_rate, -self.max_angular_rate, -self.max_angular_rate], dtype=np.float32),
             high=np.array([self.max_thrust, self.max_angular_rate, self.max_angular_rate, self.max_angular_rate], dtype=np.float32),
-            dtype=np.float32
-        )
+            dtype=np.float32)
+
 
         # ROS 初始化
         if not rospy.get_node_uri():
@@ -47,14 +47,15 @@ class QuadrotorEnv(gym.Env):
         self.state_lock = threading.Lock()
         
         # 控制频率
-        self.control_hz = 100.0
+        self.control_hz = 50.0
         self.rate = rospy.Rate(self.control_hz)
         self.current_state = np.zeros(self.state_dim, dtype=np.float32)
-        self.desired_state = np.array([0, 0, 3, 0, 0, 0, 1, 0, 0, 0, 0, 0, 0], dtype=np.float32)
+        self.desired_state = np.array([0, 0, 3, 0, 0, 0, 1, 0, 0, 0], dtype=np.float32)
+        # self.desired_state = np.array([0, 0, 2], dtype=np.float32)
         
         # 安全参数
         self.max_position_error = 5.0  # 米
-        self.max_episode_steps = 1024  # 10秒 @ 20Hz
+        self.max_episode_steps =64  # 10秒 @ 20Hz
         self.step_count = 0
 
         self.episode_reward=0
@@ -74,26 +75,11 @@ class QuadrotorEnv(gym.Env):
                 msg.twist.twist.linear.x,
                 msg.twist.twist.linear.y,
                 msg.twist.twist.linear.z,
-                msg.twist.twist.angular.x,
-                msg.twist.twist.angular.y,
-                msg.twist.twist.angular.z
+                # msg.twist.twist.angular.x,
+                # msg.twist.twist.angular.y,
+                # msg.twist.twist.angular.z
             ], dtype=np.float32)
 
-    # def step(self, action):
-    #     self.step_count += 1
-    #     self._publish_action(action)
-    #     self.rate.sleep()
-        
-    #     with self.state_lock:
-    #         obs = self.current_state.copy()
-        
-    #     reward = self._compute_reward(obs)
-    #     done = self._check_done(obs) or self.step_count >= self.max_episode_steps
-    #     info = {"reward": reward}  # 每步记录奖励
-    #     if done:
-    #         info["episode"] = {"r": reward, "l": self.step_count}  # 回合结束时记录奖励和长度
-        
-    #     return obs, reward, done, info
 
     def step(self, action):
         self.step_count += 1
@@ -166,11 +152,11 @@ class QuadrotorEnv(gym.Env):
         pos = obs[0:3]          # 当前位置
         quat = obs[3:7]         # 当前姿态（四元数）
         lin_vel = obs[7:10]     # 线速度
-        ang_vel = obs[10:13]    # 角速度
-        # prev_act = prev_action  # 前一个动作
+        # ang_vel = obs[10:13]    # 角速度
         
         # 目标状态（假设self.desired_state包含目标高度和姿态）
         z_d = self.desired_state[2]              # 目标高度
+
         target_quat = self.desired_state[3:7]    # 目标姿态四元数
         
         # 1. 高度奖励 (beta1 = -2e-3)
@@ -178,15 +164,15 @@ class QuadrotorEnv(gym.Env):
         r_height = -1e-2 * (height_error ** 2)
     
         
-        # 2. 姿态奖励：计算姿态矩阵的误差（假设用四元数差代替）
+        # # 2. 姿态奖励：计算姿态矩阵的误差（假设用四元数差代替）
         att_error = 2 * np.arccos(np.clip(np.abs(quat.dot(target_quat)), -1.0, 1.0))
         r_attitude = -1e-3 * (att_error **2)
         
         # 3. 线速度惩罚：使用平方误差，系数设为 -1e-3
         vel_penalty = -1e-3 * (np.linalg.norm(lin_vel) ** 2)
         
-        # 4. 角速度惩罚：使用平方误差，系数设为 -1e-3
-        ang_vel_penalty = -1e-3 * (np.linalg.norm(ang_vel) ** 2)
+        # # 4. 角速度惩罚：使用平方误差，系数设为 -1e-3
+        # ang_vel_penalty = -1e-3 * (np.linalg.norm(ang_vel) ** 2)
         
         # 5. 动作平滑惩罚：使用平方误差，系数设为 -1e-3
         if self.prev_action_ is not None:
@@ -197,11 +183,12 @@ class QuadrotorEnv(gym.Env):
     
         # 6. 成功悬停奖励：当达到所有条件时，给予持续的正奖励
         success_reward = 0.0
-        if (abs(height_error) < 0.1 and
-            np.linalg.norm(lin_vel) < 0.5 and
-            np.linalg.norm(ang_vel) < 0.1):
+        if (abs(height_error) < 0.1 
+            and np.linalg.norm(lin_vel) < 0.5 
+            # and np.linalg.norm(ang_vel) < 0.1
+            ):
             # 可以给一个较小的正奖励，例如每步 + 1
-            success_reward = 1
+            success_reward = 10
             
         
         # 总奖励 = 各项加权和 + 成功奖励
@@ -209,7 +196,7 @@ class QuadrotorEnv(gym.Env):
             r_height + 
             r_attitude + 
             vel_penalty + 
-            ang_vel_penalty + 
+            # ang_vel_penalty + 
             r_act_smooth + 
             success_reward
         )

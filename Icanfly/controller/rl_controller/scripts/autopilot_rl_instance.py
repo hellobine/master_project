@@ -4,6 +4,7 @@
 import rospy
 import sys
 import os
+import re
 sys.path.append(os.path.dirname(os.path.abspath(__file__)))
 import gym
 # from environment import QuadrotorEnv
@@ -63,7 +64,32 @@ from stable_baseline3_env import QuadrotorEnv
 from stable_baseline3_train import SB3PPOTrainer
 from stable_baselines3.common.vec_env import DummyVecEnv
 
+def get_latest_checkpoint(checkpoint_dir):
+    """
+    在 checkpoint_dir 中查找最新的 checkpoint 文件，文件名格式应为 "ppo_quad_{step}.zip"
+    返回最新文件的完整路径，若无则返回 None。
+    """
+    if not os.path.exists(checkpoint_dir):
+        return None
+    checkpoint_files = []
+    for f in os.listdir(checkpoint_dir):
+        if f.startswith("ppo_quad_") and f.endswith(".zip"):
+            match = re.search(r"ppo_quad_(\d+)\.zip", f)
+            if match:
+                step = int(match.group(1))
+                checkpoint_files.append((step, f))
+    if not checkpoint_files:
+        return None
+    latest = max(checkpoint_files, key=lambda x: x[0])
+    return os.path.join(checkpoint_dir, latest[1])
+
+
 if __name__ == "__main__":
+    
+    # train_flag=False
+    
+    train_flag=True
+    
     env = QuadrotorEnv()  # 直接传入原始环境
     
     trainer = SB3PPOTrainer(
@@ -76,4 +102,35 @@ if __name__ == "__main__":
         model_path="sb3_quadrotor_hover"
     )
     
-    trainer.train()
+    # 优先查找最新保存的 checkpoint 文件
+    checkpoint_path = get_latest_checkpoint("./sb3_checkpoints/")
+    if checkpoint_path is not None:
+        print(f"Found latest checkpoint: {checkpoint_path}")
+        trainer.load(checkpoint_path)
+    elif os.path.exists(trainer.model_path + ".zip"):
+        # 若没有 checkpoint 文件，检查最终保存的模型文件是否存在
+        print(f"Found final model file: {trainer.model_path + '.zip'}")
+        trainer.load(trainer.model_path)
+    else:
+        print("No saved model found, starting fresh training.")
+    
+    if train_flag==True:
+        trainer.train()
+    else:
+        # 重置环境，获取初始状态
+        obs = env.reset()
+        
+        rate = rospy.Rate(50)  # 控制频率，建议与环境内控制频率一致（例如 50Hz）
+        rospy.loginfo("Entering control loop...")
+        
+        while not rospy.is_shutdown():
+            # 获取动作，使用 deterministic 模式以获得稳定控制
+            action, _ = trainer.model.predict(obs, deterministic=True)
+            # 环境 step 内部会发布 ROS 控制消息给无人机
+            obs, reward, done, info = env.step(action)
+            
+            # if done:
+                # rospy.loginfo("Episode finished, resetting environment.")
+                # obs = env.reset()
+            
+            rate.sleep()
