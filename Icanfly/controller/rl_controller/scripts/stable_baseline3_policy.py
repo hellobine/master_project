@@ -33,6 +33,8 @@ class CustomNetwork(nn.Module):
         self.net = nn.Sequential(
             nn.Linear(feature_dim, 128),
             nn.Tanh(),
+            # nn.Linear(128, 128),
+            # nn.Tanh(),
             nn.Linear(128, 64),
             nn.Tanh(),
             nn.Linear(64, 32),

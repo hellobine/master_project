@@ -21,9 +21,9 @@ int main(int argc, char** argv) {
   autopilot_helper::AutoPilotHelper autopilot_helper(nh, private_nh);
 
   quadrotor_common::Trajectory traj_msg;
-  autopilot_helper.generateEightTrajectory(traj_msg);
+  // autopilot_helper.generateEightTrajectory(traj_msg);
   // autopilot_helper.generateCircleTrajectory(traj_msg);
-  // autopilot_helper.generateCurveTrajectory(traj_msg);
+  autopilot_helper.generateCurveTrajectory(traj_msg);
 
   int flag=0;
 
@@ -32,12 +32,12 @@ int main(int argc, char** argv) {
   ros::Rate rate(10); // 每秒检查 10 次
   while (ros::ok()) {
 
-    // if (autopilot_helper.getCurrentAutopilotState() == autopilot::States::HOVER) {
-        // if(flag==0){
-          // flag+=1;
+    if (autopilot_helper.getCurrentAutopilotState() == autopilot::States::HOVER) {
+        if(flag==0){
+          flag+=1;
           autopilot_helper.sendTrajectory(traj_msg);
-        // }  
-    // }
+        }  
+    }
     ros::spinOnce();  // **保持 ROS 事件循环，防止节点退出**
     rate.sleep();
   }

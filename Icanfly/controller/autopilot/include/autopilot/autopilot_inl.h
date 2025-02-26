@@ -780,6 +780,7 @@ void AutoPilot<Tcontroller, Tparams>::trajectoryCallback(
 
   if (autopilot_state_ != States::TRAJECTORY_CONTROL) {
     setAutoPilotState(States::TRAJECTORY_CONTROL);
+    // setAutoPilotState(States::REFERENCE_CONTROL);
   }
 
   // Mutex is unlocked because it goes out of scope here
