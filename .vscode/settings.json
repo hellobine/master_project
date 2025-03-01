@@ -7,6 +7,7 @@
           "/home/hello/catkin_ws_rotors/devel/lib/python3/dist-packages",
           "/opt/ros/noetic/lib/python3/dist-packages"
      ],
+     "python.defaultInterpreterPath": "/home/hello/anaconda3/envs/rl_controller/bin/python",
      "files.associations": {
           "cctype": "cpp",
           "cmath": "cpp",

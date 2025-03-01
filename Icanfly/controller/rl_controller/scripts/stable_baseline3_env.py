@@ -10,6 +10,9 @@ from geometry_msgs.msg import PoseStamped, TwistStamped
 from nav_msgs.msg import Odometry
 from quadrotor_msgs.msg import ControlCommand
 from gazebo_msgs.msg import ModelState
+from rotors_comm.msg import WindSpeed
+from geometry_msgs.msg import Vector3
+
 import threading
 
 class QuadrotorEnv(gym.Env):
@@ -24,16 +27,20 @@ class QuadrotorEnv(gym.Env):
         self.max_angular_rate = 2.0  # rad/s
 
         # Gym 空间定义
-        self.state_dim = 13  # [px, py, pz, qx, qy, qz, qw, vx, vy, vz]
-        self.action_dim = 4  # [推力, ωx, ωy, ωz]
+        self.state_dim = 3  # [px, py, pz, qx, qy, qz, qw, vx, vy, vz]
+        self.action_dim = 1  # [推力, ωx, ωy, ωz]
         
         self.observation_space = spaces.Box(
             low=-np.inf, high=np.inf, 
             shape=(self.state_dim,), dtype=np.float32
         )
+        # self.action_space = spaces.Box(
+        #     low=np.array([self.min_thrust, -self.max_angular_rate, -self.max_angular_rate, -self.max_angular_rate], dtype=np.float32),
+        #     high=np.array([self.max_thrust, self.max_angular_rate, self.max_angular_rate, self.max_angular_rate], dtype=np.float32),
+        #     dtype=np.float32)
         self.action_space = spaces.Box(
-            low=np.array([self.min_thrust, -self.max_angular_rate, -self.max_angular_rate, -self.max_angular_rate], dtype=np.float32),
-            high=np.array([self.max_thrust, self.max_angular_rate, self.max_angular_rate, self.max_angular_rate], dtype=np.float32),
+            low=np.array([self.min_thrust], dtype=np.float32),
+            high=np.array([self.max_thrust], dtype=np.float32),
             dtype=np.float32)
 
 
@@ -44,13 +51,16 @@ class QuadrotorEnv(gym.Env):
         # 订阅/发布器
         self.odom_sub = rospy.Subscriber('/hummingbird/ground_truth/odometry', Odometry, self.odom_callback)
         self.cmd_pub = rospy.Publisher('/hummingbird/control_command', ControlCommand, queue_size=1)
+        self.windspeed_pub = rospy.Publisher('/hummingbird/wind_speed', WindSpeed, queue_size=1)
         self.state_lock = threading.Lock()
-        
+        #   // 创建一个发布者，发布话题名为 "wind_speed_topic"，队列大小为10
+
         # 控制频率
         self.control_hz = 50.0
         self.rate = rospy.Rate(self.control_hz)
         self.current_state = np.zeros(self.state_dim, dtype=np.float32)
-        self.desired_state = np.array([0, 0, 3, 0, 0, 0, 1, 0, 0, 0, 0, 0, 0], dtype=np.float32)
+        # self.desired_state = np.array([0, 0, 3, 0, 0, 0, 1, 0, 0, 0, 0, 0, 0], dtype=np.float32)
+        self.desired_state = np.array([0, 0, 3], dtype=np.float32)
 
         # 安全参数
         self.max_position_error = 5.0  # 米
@@ -66,18 +76,27 @@ class QuadrotorEnv(gym.Env):
             self.current_state = np.array([
                 msg.pose.pose.position.x, 
                 msg.pose.pose.position.y, 
-                msg.pose.pose.position.z,
-                msg.pose.pose.orientation.x,
-                msg.pose.pose.orientation.y,
-                msg.pose.pose.orientation.z,
-                msg.pose.pose.orientation.w,
-                msg.twist.twist.linear.x,
-                msg.twist.twist.linear.y,
-                msg.twist.twist.linear.z,
-                msg.twist.twist.angular.x,
-                msg.twist.twist.angular.y,
-                msg.twist.twist.angular.z
+                msg.pose.pose.position.z
+                # msg.pose.pose.orientation.x,
+                # msg.pose.pose.orientation.y,
+                # msg.pose.pose.orientation.z,
+                # msg.pose.pose.orientation.w,
+                # msg.twist.twist.linear.x,
+                # msg.twist.twist.linear.y,
+                # msg.twist.twist.linear.z,
+                # msg.twist.twist.angular.x,
+                # msg.twist.twist.angular.y,
+                # msg.twist.twist.angular.z
             ], dtype=np.float32)
+
+            wind_speed_msg = WindSpeed()
+            wind_speed_msg.header.stamp = rospy.Time.now()
+            wind_speed_msg.header.frame_id = "world"  # 根据需求设置坐标系
+            
+            # 填充风速向量数据（单位：m/s）
+            wind_speed_msg.velocity = Vector3(0.0, 0.0, -100.0)
+
+            # self.windspeed_pub.publish(wind_speed_msg)
 
 
     def step(self, action):
@@ -123,10 +142,10 @@ class QuadrotorEnv(gym.Env):
     def _reset_drone_pose(self):
         state = ModelState()
         state.model_name = "hummingbird"
-        state.pose.position.x = np.random.uniform(-1, 1)
-        state.pose.position.y = np.random.uniform(-1, 1)
-        # state.pose.position.x = 0
-        # state.pose.position.y = 0
+        # state.pose.position.x = np.random.uniform(-1, 1)
+        # state.pose.position.y = np.random.uniform(-1, 1)
+        state.pose.position.x = 0
+        state.pose.position.y = 0
         state.pose.position.z = 0.1
         # state.pose.orientation.w = 1.0
         pub = rospy.Publisher('/gazebo/set_model_state', ModelState, queue_size=1)
@@ -137,26 +156,26 @@ class QuadrotorEnv(gym.Env):
         cmd.armed = True
         cmd.control_mode = ControlCommand.BODY_RATES
         cmd.collective_thrust = np.clip(action[0], self.min_thrust, self.max_thrust) 
-        cmd.bodyrates.x = np.clip(action[1], -self.max_angular_rate, self.max_angular_rate)
-        cmd.bodyrates.y = np.clip(action[2], -self.max_angular_rate, self.max_angular_rate)
-        cmd.bodyrates.z = np.clip(action[3], -self.max_angular_rate, self.max_angular_rate)
-        # cmd.bodyrates.x = 0
-        # cmd.bodyrates.y = 0
-        # cmd.bodyrates.z = 0
+        # cmd.bodyrates.x = np.clip(action[1], -self.max_angular_rate, self.max_angular_rate)
+        # cmd.bodyrates.y = np.clip(action[2], -self.max_angular_rate, self.max_angular_rate)
+        # cmd.bodyrates.z = np.clip(action[3], -self.max_angular_rate, self.max_angular_rate)
+        cmd.bodyrates.x = 0
+        cmd.bodyrates.y = 0
+        cmd.bodyrates.z = 0
         self.cmd_pub.publish(cmd)
 
     def _compute_reward(self, obs, curr_action):
         # 假设观测包含：[位置(3), 姿态四元数(4), 线速度(3), 角速度(3), 前一个动作(4)]
         # 分解观测数据
         pos = obs[0:3]          # 当前位置
-        quat = obs[3:7]         # 当前姿态（四元数）
-        lin_vel = obs[7:10]     # 线速度
-        ang_vel = obs[10:13]    # 角速度
+        # quat = obs[3:7]         # 当前姿态（四元数）
+        # lin_vel = obs[7:10]     # 线速度
+        # ang_vel = obs[10:13]    # 角速度
         
         # 目标状态（假设self.desired_state包含目标高度和姿态）
         z_d = self.desired_state[2]              # 目标高度
 
-        target_quat = self.desired_state[3:7]    # 目标姿态四元数
+        # target_quat = self.desired_state[3:7]    # 目标姿态四元数
         
         # 1. 高度奖励 (beta1 = -2e-3)
         height_error = pos[2] - z_d
@@ -164,14 +183,14 @@ class QuadrotorEnv(gym.Env):
     
         
         # # 2. 姿态奖励：计算姿态矩阵的误差（假设用四元数差代替）
-        att_error = 2 * np.arccos(np.clip(np.abs(quat.dot(target_quat)), -1.0, 1.0))
-        r_attitude = -1e-3 * (att_error **2)
+        # att_error = 2 * np.arccos(np.clip(np.abs(quat.dot(target_quat)), -1.0, 1.0))
+        # r_attitude = -1e-3 * (att_error **2)
         
         # 3. 线速度惩罚：使用平方误差，系数设为 -1e-3
-        vel_penalty = -1e-3 * (np.linalg.norm(lin_vel) ** 2)
+        # vel_penalty = -1e-3 * (np.linalg.norm(lin_vel) ** 2)
         
         # # 4. 角速度惩罚：使用平方误差，系数设为 -1e-3
-        ang_vel_penalty = -1e-3 * (np.linalg.norm(ang_vel) ** 2)
+        # ang_vel_penalty = -1e-3 * (np.linalg.norm(ang_vel) ** 2)
         
         # 5. 动作平滑惩罚：使用平方误差，系数设为 -1e-3
         if self.prev_action_ is not None:
@@ -183,8 +202,8 @@ class QuadrotorEnv(gym.Env):
         # 6. 成功悬停奖励：当达到所有条件时，给予持续的正奖励
         success_reward = 0.0
         if (abs(height_error) < 0.1 
-            and np.linalg.norm(lin_vel) < 0.5 
-            and np.linalg.norm(ang_vel) < 0.1
+            # and np.linalg.norm(lin_vel) < 0.5 
+            # and np.linalg.norm(ang_vel) < 0.1
             ):
             # 可以给一个较小的正奖励，例如每步 + 1
             success_reward = 5
@@ -197,9 +216,9 @@ class QuadrotorEnv(gym.Env):
         # 总奖励 = 各项加权和 + 成功奖励
         total_reward = (
             r_height + 
-            r_attitude + 
-            vel_penalty + 
-            ang_vel_penalty + 
+            # r_attitude + 
+            # vel_penalty + 
+            # ang_vel_penalty + 
             r_act_smooth + 
             success_reward + r_height_proximity*2
         )

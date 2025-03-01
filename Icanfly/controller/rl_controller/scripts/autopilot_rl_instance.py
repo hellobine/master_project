@@ -85,6 +85,8 @@ def get_latest_checkpoint(checkpoint_dir):
 
 
 if __name__ == "__main__":
+
+    # wind_speed
     
     # train_flag=False
     
@@ -129,8 +131,8 @@ if __name__ == "__main__":
             # 环境 step 内部会发布 ROS 控制消息给无人机
             obs, reward, done, info = env.step(action)
             
-            # if done:
-                # rospy.loginfo("Episode finished, resetting environment.")
-                # obs = env.reset()
+            if done:
+                rospy.loginfo("Episode finished, resetting environment.")
+                obs = env.reset()
             
             rate.sleep()

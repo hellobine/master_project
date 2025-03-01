@@ -9,14 +9,14 @@ from torch.utils.tensorboard import SummaryWriter
 import matplotlib.pyplot as plt
 
 class SB3PPOTrainer:
-    def __init__(self, env, total_timesteps=1e6, batch_size=128, n_steps=1024,
+    def __init__(self, env, total_timesteps=1e6, batch_size=1024, n_steps=1024,
                  gamma=0.99, gae_lambda=0.95, clip_range=0.2, ent_coef=0.05,
                  learning_rate=1e-4, model_path="sb3_ppo_quadrotor"):
         
         self.mass = 0.716
         self.min_thrust = 0
         self.max_thrust = 4 * self.mass * 9.81
-        self.angular_scale = 3.0
+        # self.angular_scale = 3.0
         
         if not isinstance(env, DummyVecEnv):
             self.env = DummyVecEnv([lambda: env])
@@ -33,7 +33,7 @@ class SB3PPOTrainer:
             policy_kwargs={
                 "min_thrust": self.min_thrust,
                 "max_thrust": self.max_thrust,
-                "angular_scale": self.angular_scale,
+                # "angular_scale": self.angular_scale,
                 "net_arch": []
             },
             learning_rate=learning_rate,

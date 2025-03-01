@@ -25,11 +25,11 @@ class CustomDiagGaussianDistribution:
         return self.dist.entropy().sum(dim=-1)
 
 class CustomNetwork(nn.Module):
-    def __init__(self, feature_dim, last_layer_dim, min_thrust, max_thrust, angular_scale):
+    def __init__(self, feature_dim, last_layer_dim, min_thrust, max_thrust):
         super().__init__()
         self.min_thrust = min_thrust
         self.max_thrust = max_thrust
-        self.angular_scale = angular_scale
+        # self.angular_scale = angular_scale
         self.net = nn.Sequential(
             nn.Linear(feature_dim, 128),
             nn.Tanh(),
@@ -47,8 +47,8 @@ class CustomNetwork(nn.Module):
         raw_output = self.net(x)
         thrust = self.min_thrust + (raw_output[:, 0] + 1.0) * 0.5 * (self.max_thrust - self.min_thrust)
         thrust = th.clamp(thrust, self.min_thrust, self.max_thrust)
-        rates = raw_output[:, 1:] * self.angular_scale
-        return th.cat([th.unsqueeze(thrust, 1), rates], dim=1)
+        # rates = raw_output[:, 1:] * self.angular_scale
+        return th.cat([th.unsqueeze(thrust, 1)], dim=1)
 
 class CustomActorCriticPolicy(ActorCriticPolicy):
     def __init__(self, 
@@ -56,17 +56,17 @@ class CustomActorCriticPolicy(ActorCriticPolicy):
                  action_space: gym.spaces.Space, 
                  lr_schedule, 
                  min_thrust: float = 0, 
-                 max_thrust: float = 28.1, 
-                 angular_scale: float = 3.0,
+                 max_thrust: float = 28.1 ,
+                #  angular_scale: float = 3.0,
                  **kwargs):
         super().__init__(observation_space, action_space, lr_schedule, **kwargs)
         
         self.min_thrust = min_thrust
         self.max_thrust = max_thrust
-        self.angular_scale = angular_scale
+        # self.angular_scale = angular_scale
         
         feature_dim = self.features_extractor.features_dim
-        self.actor_net = CustomNetwork(feature_dim, action_space.shape[0], min_thrust, max_thrust, angular_scale)
+        self.actor_net = CustomNetwork(feature_dim, action_space.shape[0], min_thrust, max_thrust)
         self.log_std = nn.Parameter(th.ones(action_space.shape[0]) * -0.5)  # 初始 std ≈ 0.6
 
     def _get_action_dist_from_latent(self, latent_pi):
