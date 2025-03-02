@@ -1,0 +1,104 @@
+<?xml version="1.0"?>
+<launch>
+
+  <arg name="quad_name" default="hummingbird1"/>
+  <arg name="world_name" value="$(find rotors_gazebo)/worlds/empty.world"/>
+  <arg name="paused" value="false"/>
+  <arg name="gui" value="true"/>
+  <arg name="use_ground_truth"  value="true"/>
+  <arg name="use_mpc" default="false"/>
+  <arg name="custom_models" default=""/>
+  <arg name="custom_plugins" default=""/>
+
+  <arg name="mav_name" value="$(arg quad_name)"/>
+  <arg name="model" value="$(find rotors_description)/urdf/mav_generic_odometry_sensor.gazebo"/>
+
+  <arg name="x_init" default="0.0"/>
+  <arg name="y_init" default="0.0"/>
+
+  <arg name="enable_logging" default="false"/>
+  <arg name="enable_ground_truth" default="true"/>
+  <arg name="enable_command_feedthrough" default="true"/>
+  <arg name="log_file" default="$(arg quad_name)"/>
+
+  <arg name="use_unity" default="true"/>
+  <arg name="verbose" default="false"/>
+  <arg name="debug" default="false"/>
+
+
+  <!-- Gazebo stuff to spawn the world !-->
+  <env name="GAZEBO_MODEL_PATH" value="${GAZEBO_MODEL_PATH}:$(find rotors_gazebo)/models:$(arg custom_models)"/>
+  <env name="GAZEBO_PLUGIN_PATH" value="${GAZEBO_PLUGIN_PATH}:$(arg custom_plugins)"/>
+  <env name="GAZEBO_RESOURCE_PATH" value="${GAZEBO_RESOURCE_PATH}:$(find rotors_gazebo)/models"/>
+  <include file="$(find gazebo_ros)/launch/empty_world.launch">
+    <arg name="world_name" value="$(arg world_name)" />
+    <arg name="debug" value="$(arg debug)" />
+    <arg name="paused" value="$(arg paused)" />
+    <arg name="gui" value="$(arg gui)" />
+    <arg name="verbose" value="$(arg verbose)"/>
+  </include>
+
+  <!-- RotorS stuff to spawn the quadrotor !-->
+  <!--启动一个四旋翼模型，传入飞行器名称、模型文件、位置初始化参数（x_init, y_init）等。-->
+  <!-- <group ns="$(arg mav_name)">
+    <include file="$(find rotors_gazebo)/launch/spawn_mav.launch">
+      <arg name="mav_name" value="$(arg mav_name)" />
+      <arg name="model" value="$(arg model)" />
+      <arg name="enable_logging" value="$(arg enable_logging)" />
+      <arg name="enable_ground_truth" value="$(arg enable_ground_truth)" />
+      <arg name="log_file" value="$(arg log_file)"/>
+      <arg name="x" value="$(arg x_init)" />
+      <arg name="y" value="$(arg y_init)" />
+    </include>
+  </group> -->
+  
+  <group ns="hummingbird1">
+    <include file="$(find rotors_gazebo)/launch/spawn_mav_RL.launch">
+      <arg name="namespace" value="hummingbird1" />
+      <arg name="model" value="$(arg model)" />
+      <arg name="x" value="0" />
+      <arg name="y" value="0" />
+    </include>
+  </group>
+
+  <!-- 第二架无人机 -->
+  <group ns="hummingbird2">
+    <include file="$(find rotors_gazebo)/launch/spawn_mav_RL.launch">
+      <arg name="namespace" value="hummingbird2" />
+      <arg name="model" value="$(arg model)" />
+      <arg name="x" value="1" />
+      <arg name="y" value="1" />
+    </include>
+  </group>
+
+  <!-- RPG stuff !-->
+  <group ns="$(arg quad_name)">
+
+    <group if="$(arg use_ground_truth)">
+      <node pkg="rpg_rotors_interface" type="rpg_rotors_interface" name="rpg_rotors_interface" output="screen">
+        <rosparam file="$(find rpg_rotors_interface)/parameters/rpg_rotors_interface.yaml" />
+
+        <remap from="odometry" to="ground_truth/odometry" />
+        <remap from="rpg_rotors_interface/arm" to="bridge/arm" />
+        <param name="velocity_estimate_in_world_frame" value="false" />
+        <param name="state_estimate_timeout" value="0.1" />
+        <param name="control_command_delay" value="0.05" />
+        <param name="enable_command_feedthrough" value="$(arg enable_command_feedthrough)" />
+
+        <remap from="autopilot/state_estimate" to="ground_truth/odometry" />
+      </node>
+
+      
+    </group>
+
+ 
+
+
+    <node name="rviz" pkg="rviz" type="rviz" args="-d $(find rotors_gazebo)/resource/rviz/rviz.rviz" output="screen" />
+
+    <node name="fly_10_turn_experience_node" pkg="icanfly" type="fly_10_turn_experience_node"  output="screen" />
+
+
+  </group>
+
+</launch>

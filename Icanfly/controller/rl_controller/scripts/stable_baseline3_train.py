@@ -1,24 +1,24 @@
-
 import numpy as np
 import torch
 import gym
 from stable_baselines3 import PPO
 from stable_baselines3.common.callbacks import BaseCallback
-from stable_baselines3.common.vec_env import DummyVecEnv
+from stable_baselines3.common.vec_env import DummyVecEnv, VecEnv
 from torch.utils.tensorboard import SummaryWriter
 import matplotlib.pyplot as plt
 
 class SB3PPOTrainer:
-    def __init__(self, env, total_timesteps=1e6, batch_size=1024, n_steps=1024,
+    def __init__(self, env, total_timesteps=1e8, batch_size=1024, n_steps=128,
                  gamma=0.99, gae_lambda=0.95, clip_range=0.2, ent_coef=0.05,
                  learning_rate=1e-4, model_path="sb3_ppo_quadrotor"):
         
-        self.mass = 0.716
-        self.min_thrust = 0
-        self.max_thrust = 4 * self.mass * 9.81
-        # self.angular_scale = 3.0
+        # 设置物理参数（仅用于奖励或网络设计参考）
+        self.mass = 0.68
+        self.min_thrust = 8
+        self.max_thrust = 40
         
-        if not isinstance(env, DummyVecEnv):
+        # 如果传入的环境未向量化，则用 DummyVecEnv 包装
+        if not isinstance(env, VecEnv):
             self.env = DummyVecEnv([lambda: env])
         else:
             self.env = env
@@ -26,16 +26,11 @@ class SB3PPOTrainer:
         self.total_timesteps = int(total_timesteps)
         self.model_path = model_path
         
-        from stable_baseline3_policy import CustomActorCriticPolicy
+        # 使用内置的 MlpPolicy，不再引用自定义策略
         self.model = PPO(
-            policy=CustomActorCriticPolicy,
+            policy="MlpPolicy",
             env=self.env,
-            policy_kwargs={
-                "min_thrust": self.min_thrust,
-                "max_thrust": self.max_thrust,
-                # "angular_scale": self.angular_scale,
-                "net_arch": []
-            },
+            policy_kwargs={"net_arch": [dict(pi=[256, 256 , 128], vf=[256,256,128])]},
             learning_rate=learning_rate,
             n_steps=n_steps,
             batch_size=batch_size,
@@ -93,43 +88,38 @@ class SB3PPOTrainer:
         print(f"Model loaded from {path}")
 
 class SB3CustomCallback(BaseCallback):
-     def __init__(self, save_freq, save_path, model, writer, ax, fig, episode_rewards, steps, verbose=0):
-          super().__init__(verbose)
-          self.save_freq = save_freq
-          self.save_path = save_path
-          self.model = model
-          self.writer = writer
-          self.ax = ax
-          self.fig = fig
-          self.episode_rewards = episode_rewards
-          self.steps = steps
+    def __init__(self, save_freq, save_path, model, writer, ax, fig, episode_rewards, steps, verbose=0):
+        super().__init__(verbose)
+        self.save_freq = save_freq
+        self.save_path = save_path
+        self.model = model
+        self.writer = writer
+        self.ax = ax
+        self.fig = fig
+        self.episode_rewards = episode_rewards
+        self.steps = steps
         
-     def _on_step(self) -> bool:
-          if self.locals.get("infos"):
-               episode_reward = 0
-               for info in self.locals["infos"]:
-                    if "reward" in info:
-                        self.writer.add_scalar("Reward/Step", info["reward"], self.num_timesteps)
+    def _on_step(self) -> bool:
+        if self.locals.get("infos"):
+            for info in self.locals["infos"]:
+                if "reward" in info:
+                    self.writer.add_scalar("Reward/Step", info["reward"], self.num_timesteps)
+                if "episode" in info:
+                    self.episode_rewards.append(info["episode"]["r"])
+                    self.steps.append(self.num_timesteps)
+                    print(f"Episode ended at step {self.num_timesteps}, reward: {info['episode']['r']}")
+                    self._update_plot()
+        if self.num_timesteps % self.save_freq == 0:
+            save_path = f"{self.save_path}/ppo_quad_{self.num_timesteps}"
+            self.model.save(save_path)
+        return True
 
-                    if "episode" in info:
-                        # 直接用 info["episode"]["r"] 获取完整 episode 奖励
-                        self.episode_rewards.append(info["episode"]["r"])
-                        self.steps.append(self.num_timesteps)
-                        print(f"Episode ended at step {self.num_timesteps}, reward: {info['episode']['r']}")
-
-                        self._update_plot()
-  
-          if self.num_timesteps % self.save_freq == 0:
-               save_path = f"{self.save_path}/ppo_quad_{self.num_timesteps}"
-               self.model.save(save_path)
-          return True
-
-     def _update_plot(self):
-          self.ax.clear()
-          self.ax.plot(self.steps, self.episode_rewards, label="Episode Reward")
-          self.ax.set_xlabel("Global Step")
-          self.ax.set_ylabel("Reward")
-          self.ax.legend()
-          self.fig.canvas.draw()
-          self.fig.canvas.flush_events()
-          plt.pause(0.01)
+    def _update_plot(self):
+        self.ax.clear()
+        self.ax.plot(self.steps, self.episode_rewards, label="Episode Reward")
+        self.ax.set_xlabel("Global Step")
+        self.ax.set_ylabel("Reward")
+        self.ax.legend()
+        self.fig.canvas.draw()
+        self.fig.canvas.flush_events()
+        plt.pause(0.01)
