@@ -11,6 +11,7 @@ from gazebo_msgs.msg import ModelState
 from rotors_comm.msg import WindSpeed
 import threading
 from std_msgs.msg import Bool
+import random
 
 class QuadrotorEnv(gym.Env):
     def __init__(self, namespace="drone"):
@@ -58,7 +59,7 @@ class QuadrotorEnv(gym.Env):
 
         # 安全和步数设置
         self.max_position_error = 5.0  # 米
-        self.max_episode_steps = 1024
+        self.max_episode_steps = 128
         self.step_count = 0
         self.episode_reward = 0
         self.prev_action_ = None
@@ -184,41 +185,48 @@ class QuadrotorEnv(gym.Env):
         yaw = np.arctan2(t3, t4)
         return roll, pitch, yaw
 
-
     def _compute_reward(self, obs, curr_action):
+        # 目标位置（参考轨迹点），这里固定为 [0, 0, 3]
         target_pos = np.array([0.0, 0.0, 3.0])
-        pos = obs[0:3]
-        lin_vel = obs[7:10]
-        ang_vel = obs[10:13]
+        pos = obs[0:3]  # 当前位置信息
 
-        # 加权位置误差
-        pos_error = pos - target_pos
-        r_pos = -(1.0*(pos_error[0]**2 + pos_error[1]**2) 
-                + 2.0*(pos_error[2]**2))
+        # 计算当前位置误差（欧氏距离）
+        pos_error = np.linalg.norm(pos - target_pos)
+        # 预定义的最大误差 d_max，用于归一化
+        d_max = 25.0  
+        if pos_error>25: pos_error=25
+        # 任务奖励 r_task：误差越小，奖励越高（归一化到 [0,1]）
+        r_task = 1.0 - (pos_error / d_max)
+        # if r_task<0: r_task=0
 
-        # 速度和角速度惩罚
-        r_vel = -0.5 * np.sum(lin_vel ** 2)
-        r_ang = -0.5 * np.sum(ang_vel ** 2)
-
-        # 动作平滑性
-        action_smooth = 0.0
+        # 动作平滑奖励 r_smooth：鼓励连续动作变化小
         if self.prev_action_ is not None:
             action_diff = np.linalg.norm(curr_action - self.prev_action_)
-            action_smooth = -1e-3 * (action_diff ** 2)
+        else:
+            action_diff = 0.0
+        # 直接使用动作差的 L2 范数，乘以负号惩罚不连续变化
+        r_smooth = -action_diff
+        # 平滑奖励权重 λ，选取 0.4
+        lambda_val = 0.4
 
-        # 成功条件（放宽阈值）
-        success = (
-            np.linalg.norm(pos_error) < 0.2 and
-            np.linalg.norm(lin_vel) < 0.5 and
-            np.linalg.norm(ang_vel) < 0.5
-        )
-        success_reward = 100.0 if success else 0.0
+        # 悬停指标：如果当前位置误差小且速度低，认为处于悬停状态，给予额外奖励
+        # 假设 obs 中线速度位于索引 7 至 9
+        lin_vel = obs[7:10]
+        vel_norm = np.linalg.norm(lin_vel)
+        hover_vel_threshold = 0.2  # 定义悬停状态的速度阈值（单位：m/s）
+        # 当位置接近目标且速度较低时，认为处于悬停状态，给予额外奖励
+        if pos_error < 0.5 and vel_norm < hover_vel_threshold:
+            r_hover = 0.2  # 悬停奖励，可根据任务需求调整
+        else:
+            r_hover = 0.0
 
-        # 自适应时间惩罚
-        time_penalty = -1.0 if not success else 0.0
+        # 整体奖励由任务奖励、动作平滑奖励和悬停奖励构成
+        reward = r_task + lambda_val * r_smooth + r_hover
 
-        return r_pos + r_vel + r_ang + action_smooth + success_reward + time_penalty
-    
+        # 更新上一时刻动作，供下次计算动作平滑奖励使用
+        self.prev_action_ = curr_action.copy()
+        return reward
+
     def _check_done(self, obs):
         pos_error = np.linalg.norm(obs[0:3] - self.desired_state[0:3])
         return pos_error > self.max_position_error  
@@ -228,3 +236,9 @@ class QuadrotorEnv(gym.Env):
 
     def close(self):
         rospy.signal_shutdown("Environment closed")
+
+    def seed(self, seed=None):
+        self._seed = seed
+        np.random.seed(seed)
+        random.seed(seed)
+        return [seed]

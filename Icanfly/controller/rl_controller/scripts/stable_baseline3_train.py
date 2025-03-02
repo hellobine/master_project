@@ -7,8 +7,14 @@ from stable_baselines3.common.vec_env import DummyVecEnv, VecEnv
 from torch.utils.tensorboard import SummaryWriter
 import matplotlib.pyplot as plt
 
+
+seed = 42
+np.random.seed(seed)
+torch.manual_seed(seed)
+
+
 class SB3PPOTrainer:
-    def __init__(self, env, total_timesteps=1e8, batch_size=1024, n_steps=128,
+    def __init__(self, env, total_timesteps=1e8, batch_size=64, n_steps=1024,
                  gamma=0.99, gae_lambda=0.95, clip_range=0.2, ent_coef=0.05,
                  learning_rate=1e-4, model_path="sb3_ppo_quadrotor"):
         
@@ -39,6 +45,7 @@ class SB3PPOTrainer:
             clip_range=clip_range,
             ent_coef=ent_coef,
             verbose=1,
+            seed=seed,
             tensorboard_log="./sb3_tensorboard/"
         )
         
