@@ -171,6 +171,317 @@
     
   </group>
 
+  <group ns="hummingbird6">
+    <include file="$(find rotors_gazebo)/launch/spawn_mav_RL.launch">
+      <arg name="namespace" value="hummingbird6" />
+      <arg name="model" value="$(arg model)" />
+      <arg name="x" value="0" />
+      <arg name="y" value="0" />
+    </include>
+    <node pkg="rpg_rotors_interface" type="rpg_rotors_interface" name="rpg_rotors_interface" output="screen">
+      <rosparam file="$(find rpg_rotors_interface)/parameters/rpg_rotors_interface.yaml" />
+
+      <remap from="odometry" to="ground_truth/odometry" />
+      <remap from="rpg_rotors_interface/arm" to="bridge/arm" />
+      <param name="velocity_estimate_in_world_frame" value="false" />
+      <param name="state_estimate_timeout" value="0.1" />
+      <param name="control_command_delay" value="0.05" />
+      <param name="enable_command_feedthrough" value="$(arg enable_command_feedthrough)" />
+
+      <remap from="autopilot/state_estimate" to="ground_truth/odometry" />
+    </node>
+    
+  </group>
+
+  <group ns="hummingbird7">
+    <include file="$(find rotors_gazebo)/launch/spawn_mav_RL.launch">
+      <arg name="namespace" value="hummingbird7" />
+      <arg name="model" value="$(arg model)" />
+      <arg name="x" value="1" />
+      <arg name="y" value="0" />
+    </include>
+    <node pkg="rpg_rotors_interface" type="rpg_rotors_interface" name="rpg_rotors_interface" output="screen">
+      <rosparam file="$(find rpg_rotors_interface)/parameters/rpg_rotors_interface.yaml" />
+
+      <remap from="odometry" to="ground_truth/odometry" />
+      <remap from="rpg_rotors_interface/arm" to="bridge/arm" />
+      <param name="velocity_estimate_in_world_frame" value="false" />
+      <param name="state_estimate_timeout" value="0.1" />
+      <param name="control_command_delay" value="0.05" />
+      <param name="enable_command_feedthrough" value="$(arg enable_command_feedthrough)" />
+
+      <remap from="autopilot/state_estimate" to="ground_truth/odometry" />
+    </node>
+    
+  </group>
+
+  <group ns="hummingbird8">
+    <include file="$(find rotors_gazebo)/launch/spawn_mav_RL.launch">
+      <arg name="namespace" value="hummingbird8" />
+      <arg name="model" value="$(arg model)" />
+      <arg name="x" value="0" />
+      <arg name="y" value="0" />
+    </include>
+    <node pkg="rpg_rotors_interface" type="rpg_rotors_interface" name="rpg_rotors_interface" output="screen">
+      <rosparam file="$(find rpg_rotors_interface)/parameters/rpg_rotors_interface.yaml" />
+
+      <remap from="odometry" to="ground_truth/odometry" />
+      <remap from="rpg_rotors_interface/arm" to="bridge/arm" />
+      <param name="velocity_estimate_in_world_frame" value="false" />
+      <param name="state_estimate_timeout" value="0.1" />
+      <param name="control_command_delay" value="0.05" />
+      <param name="enable_command_feedthrough" value="$(arg enable_command_feedthrough)" />
+
+      <remap from="autopilot/state_estimate" to="ground_truth/odometry" />
+    </node>
+    
+  </group>
+
+  <group ns="hummingbird9">
+    <include file="$(find rotors_gazebo)/launch/spawn_mav_RL.launch">
+      <arg name="namespace" value="hummingbird9" />
+      <arg name="model" value="$(arg model)" />
+      <arg name="x" value="1" />
+      <arg name="y" value="0" />
+    </include>
+    <node pkg="rpg_rotors_interface" type="rpg_rotors_interface" name="rpg_rotors_interface" output="screen">
+      <rosparam file="$(find rpg_rotors_interface)/parameters/rpg_rotors_interface.yaml" />
+
+      <remap from="odometry" to="ground_truth/odometry" />
+      <remap from="rpg_rotors_interface/arm" to="bridge/arm" />
+      <param name="velocity_estimate_in_world_frame" value="false" />
+      <param name="state_estimate_timeout" value="0.1" />
+      <param name="control_command_delay" value="0.05" />
+      <param name="enable_command_feedthrough" value="$(arg enable_command_feedthrough)" />
+
+      <remap from="autopilot/state_estimate" to="ground_truth/odometry" />
+    </node>
+    
+  </group>
+
+  <!-- <group ns="hummingbird10">
+    <include file="$(find rotors_gazebo)/launch/spawn_mav_RL.launch">
+      <arg name="namespace" value="hummingbird10" />
+      <arg name="model" value="$(arg model)" />
+      <arg name="x" value="1" />
+      <arg name="y" value="0" />
+    </include>
+    <node pkg="rpg_rotors_interface" type="rpg_rotors_interface" name="rpg_rotors_interface" output="screen">
+      <rosparam file="$(find rpg_rotors_interface)/parameters/rpg_rotors_interface.yaml" />
+
+      <remap from="odometry" to="ground_truth/odometry" />
+      <remap from="rpg_rotors_interface/arm" to="bridge/arm" />
+      <param name="velocity_estimate_in_world_frame" value="false" />
+      <param name="state_estimate_timeout" value="0.1" />
+      <param name="control_command_delay" value="0.05" />
+      <param name="enable_command_feedthrough" value="$(arg enable_command_feedthrough)" />
+
+      <remap from="autopilot/state_estimate" to="ground_truth/odometry" />
+    </node>
+    
+  </group>
+
+  <group ns="hummingbird11">
+    <include file="$(find rotors_gazebo)/launch/spawn_mav_RL.launch">
+      <arg name="namespace" value="hummingbird11" />
+      <arg name="model" value="$(arg model)" />
+      <arg name="x" value="1" />
+      <arg name="y" value="0" />
+    </include>
+    <node pkg="rpg_rotors_interface" type="rpg_rotors_interface" name="rpg_rotors_interface" output="screen">
+      <rosparam file="$(find rpg_rotors_interface)/parameters/rpg_rotors_interface.yaml" />
+
+      <remap from="odometry" to="ground_truth/odometry" />
+      <remap from="rpg_rotors_interface/arm" to="bridge/arm" />
+      <param name="velocity_estimate_in_world_frame" value="false" />
+      <param name="state_estimate_timeout" value="0.1" />
+      <param name="control_command_delay" value="0.05" />
+      <param name="enable_command_feedthrough" value="$(arg enable_command_feedthrough)" />
+
+      <remap from="autopilot/state_estimate" to="ground_truth/odometry" />
+    </node>
+    
+  </group>
+
+  <group ns="hummingbird12">
+    <include file="$(find rotors_gazebo)/launch/spawn_mav_RL.launch">
+      <arg name="namespace" value="hummingbird12" />
+      <arg name="model" value="$(arg model)" />
+      <arg name="x" value="1" />
+      <arg name="y" value="0" />
+    </include>
+    <node pkg="rpg_rotors_interface" type="rpg_rotors_interface" name="rpg_rotors_interface" output="screen">
+      <rosparam file="$(find rpg_rotors_interface)/parameters/rpg_rotors_interface.yaml" />
+
+      <remap from="odometry" to="ground_truth/odometry" />
+      <remap from="rpg_rotors_interface/arm" to="bridge/arm" />
+      <param name="velocity_estimate_in_world_frame" value="false" />
+      <param name="state_estimate_timeout" value="0.1" />
+      <param name="control_command_delay" value="0.05" />
+      <param name="enable_command_feedthrough" value="$(arg enable_command_feedthrough)" />
+
+      <remap from="autopilot/state_estimate" to="ground_truth/odometry" />
+    </node>
+    
+  </group>
+
+  <group ns="hummingbird13">
+    <include file="$(find rotors_gazebo)/launch/spawn_mav_RL.launch">
+      <arg name="namespace" value="hummingbird13" />
+      <arg name="model" value="$(arg model)" />
+      <arg name="x" value="1" />
+      <arg name="y" value="0" />
+    </include>
+    <node pkg="rpg_rotors_interface" type="rpg_rotors_interface" name="rpg_rotors_interface" output="screen">
+      <rosparam file="$(find rpg_rotors_interface)/parameters/rpg_rotors_interface.yaml" />
+
+      <remap from="odometry" to="ground_truth/odometry" />
+      <remap from="rpg_rotors_interface/arm" to="bridge/arm" />
+      <param name="velocity_estimate_in_world_frame" value="false" />
+      <param name="state_estimate_timeout" value="0.1" />
+      <param name="control_command_delay" value="0.05" />
+      <param name="enable_command_feedthrough" value="$(arg enable_command_feedthrough)" />
+
+      <remap from="autopilot/state_estimate" to="ground_truth/odometry" />
+    </node>
+    
+  </group>
+
+
+  <group ns="hummingbird14">
+    <include file="$(find rotors_gazebo)/launch/spawn_mav_RL.launch">
+      <arg name="namespace" value="hummingbird14" />
+      <arg name="model" value="$(arg model)" />
+      <arg name="x" value="1" />
+      <arg name="y" value="0" />
+    </include>
+    <node pkg="rpg_rotors_interface" type="rpg_rotors_interface" name="rpg_rotors_interface" output="screen">
+      <rosparam file="$(find rpg_rotors_interface)/parameters/rpg_rotors_interface.yaml" />
+
+      <remap from="odometry" to="ground_truth/odometry" />
+      <remap from="rpg_rotors_interface/arm" to="bridge/arm" />
+      <param name="velocity_estimate_in_world_frame" value="false" />
+      <param name="state_estimate_timeout" value="0.1" />
+      <param name="control_command_delay" value="0.05" />
+      <param name="enable_command_feedthrough" value="$(arg enable_command_feedthrough)" />
+
+      <remap from="autopilot/state_estimate" to="ground_truth/odometry" />
+    </node>
+    
+  </group>
+
+
+  <group ns="hummingbird15">
+    <include file="$(find rotors_gazebo)/launch/spawn_mav_RL.launch">
+      <arg name="namespace" value="hummingbird15" />
+      <arg name="model" value="$(arg model)" />
+      <arg name="x" value="1" />
+      <arg name="y" value="0" />
+    </include>
+    <node pkg="rpg_rotors_interface" type="rpg_rotors_interface" name="rpg_rotors_interface" output="screen">
+      <rosparam file="$(find rpg_rotors_interface)/parameters/rpg_rotors_interface.yaml" />
+
+      <remap from="odometry" to="ground_truth/odometry" />
+      <remap from="rpg_rotors_interface/arm" to="bridge/arm" />
+      <param name="velocity_estimate_in_world_frame" value="false" />
+      <param name="state_estimate_timeout" value="0.1" />
+      <param name="control_command_delay" value="0.05" />
+      <param name="enable_command_feedthrough" value="$(arg enable_command_feedthrough)" />
+
+      <remap from="autopilot/state_estimate" to="ground_truth/odometry" />
+    </node>
+    
+  </group>
+
+  <group ns="hummingbird16">
+    <include file="$(find rotors_gazebo)/launch/spawn_mav_RL.launch">
+      <arg name="namespace" value="hummingbird16" />
+      <arg name="model" value="$(arg model)" />
+      <arg name="x" value="1" />
+      <arg name="y" value="0" />
+    </include>
+    <node pkg="rpg_rotors_interface" type="rpg_rotors_interface" name="rpg_rotors_interface" output="screen">
+      <rosparam file="$(find rpg_rotors_interface)/parameters/rpg_rotors_interface.yaml" />
+
+      <remap from="odometry" to="ground_truth/odometry" />
+      <remap from="rpg_rotors_interface/arm" to="bridge/arm" />
+      <param name="velocity_estimate_in_world_frame" value="false" />
+      <param name="state_estimate_timeout" value="0.1" />
+      <param name="control_command_delay" value="0.05" />
+      <param name="enable_command_feedthrough" value="$(arg enable_command_feedthrough)" />
+
+      <remap from="autopilot/state_estimate" to="ground_truth/odometry" />
+    </node>
+    
+  </group>
+
+  <group ns="hummingbird17">
+    <include file="$(find rotors_gazebo)/launch/spawn_mav_RL.launch">
+      <arg name="namespace" value="hummingbird17" />
+      <arg name="model" value="$(arg model)" />
+      <arg name="x" value="1" />
+      <arg name="y" value="0" />
+    </include>
+    <node pkg="rpg_rotors_interface" type="rpg_rotors_interface" name="rpg_rotors_interface" output="screen">
+      <rosparam file="$(find rpg_rotors_interface)/parameters/rpg_rotors_interface.yaml" />
+
+      <remap from="odometry" to="ground_truth/odometry" />
+      <remap from="rpg_rotors_interface/arm" to="bridge/arm" />
+      <param name="velocity_estimate_in_world_frame" value="false" />
+      <param name="state_estimate_timeout" value="0.1" />
+      <param name="control_command_delay" value="0.05" />
+      <param name="enable_command_feedthrough" value="$(arg enable_command_feedthrough)" />
+
+      <remap from="autopilot/state_estimate" to="ground_truth/odometry" />
+    </node>
+    
+  </group>
+
+
+  <group ns="hummingbird18">
+    <include file="$(find rotors_gazebo)/launch/spawn_mav_RL.launch">
+      <arg name="namespace" value="hummingbird18" />
+      <arg name="model" value="$(arg model)" />
+      <arg name="x" value="1" />
+      <arg name="y" value="0" />
+    </include>
+    <node pkg="rpg_rotors_interface" type="rpg_rotors_interface" name="rpg_rotors_interface" output="screen">
+      <rosparam file="$(find rpg_rotors_interface)/parameters/rpg_rotors_interface.yaml" />
+
+      <remap from="odometry" to="ground_truth/odometry" />
+      <remap from="rpg_rotors_interface/arm" to="bridge/arm" />
+      <param name="velocity_estimate_in_world_frame" value="false" />
+      <param name="state_estimate_timeout" value="0.1" />
+      <param name="control_command_delay" value="0.05" />
+      <param name="enable_command_feedthrough" value="$(arg enable_command_feedthrough)" />
+
+      <remap from="autopilot/state_estimate" to="ground_truth/odometry" />
+    </node>
+    
+  </group>
+
+
+  <group ns="hummingbird19">
+    <include file="$(find rotors_gazebo)/launch/spawn_mav_RL.launch">
+      <arg name="namespace" value="hummingbird19" />
+      <arg name="model" value="$(arg model)" />
+      <arg name="x" value="1" />
+      <arg name="y" value="0" />
+    </include>
+    <node pkg="rpg_rotors_interface" type="rpg_rotors_interface" name="rpg_rotors_interface" output="screen">
+      <rosparam file="$(find rpg_rotors_interface)/parameters/rpg_rotors_interface.yaml" />
+
+      <remap from="odometry" to="ground_truth/odometry" />
+      <remap from="rpg_rotors_interface/arm" to="bridge/arm" />
+      <param name="velocity_estimate_in_world_frame" value="false" />
+      <param name="state_estimate_timeout" value="0.1" />
+      <param name="control_command_delay" value="0.05" />
+      <param name="enable_command_feedthrough" value="$(arg enable_command_feedthrough)" />
+
+      <remap from="autopilot/state_estimate" to="ground_truth/odometry" />
+    </node>
+    
+  </group> -->
 
   <node name="rviz" pkg="rviz" type="rviz" args="-d $(find rotors_gazebo)/resource/rviz/rviz.rviz" output="screen" />
   <node name="fly_10_turn_experience_node" pkg="icanfly" type="fly_10_turn_experience_node"  output="screen" />

@@ -1,6 +1,7 @@
 import numpy as np
 import torch
-import gym
+# import gym
+import gymnasium as gym
 from stable_baselines3 import PPO
 from stable_baselines3.common.callbacks import BaseCallback
 from stable_baselines3.common.vec_env import DummyVecEnv, VecEnv
@@ -8,24 +9,43 @@ from torch.utils.tensorboard import SummaryWriter
 import matplotlib.pyplot as plt
 
 
-seed = 42
-np.random.seed(seed)
-torch.manual_seed(seed)
+# seed = 42
+# np.random.seed(seed)
+# torch.manual_seed(seed)
 
+
+# 定义一个包装器，将 gymnasium 的新 API 转换为 gym 的 API
+class GymnasiumWrapper(gym.Wrapper):
+    def __init__(self, env):
+        super().__init__(env)
+    
+    def step(self, action):
+        # gymnasium 的 step 返回 (obs, reward, terminated, truncated, info)
+        obs, reward, terminated, truncated, info = self.env.step(action)
+        done = terminated or truncated
+        return obs, reward, done, info
+
+    def reset(self, **kwargs):
+        # gymnasium 的 reset 返回 (obs, info)，这里只返回 obs
+        obs, info = self.env.reset(**kwargs)
+        return obs
+    
 
 class SB3PPOTrainer:
-    def __init__(self, env, total_timesteps=1e8, batch_size=64, n_steps=1024,
-                 gamma=0.99, gae_lambda=0.95, clip_range=0.2, ent_coef=0.05,
+    def __init__(self, env, total_timesteps=1e9, batch_size=1280, n_steps=128,
+                 gamma=0.99, gae_lambda=0.95, clip_range=0.2, ent_coef=0.02,
                  learning_rate=1e-4, model_path="sb3_ppo_quadrotor"):
         
         # 设置物理参数（仅用于奖励或网络设计参考）
         self.mass = 0.68
-        self.min_thrust = 8
+        self.min_thrust = 9.2
         self.max_thrust = 40
+
+
         
-        # 如果传入的环境未向量化，则用 DummyVecEnv 包装
+        # 如果传入的环境未向量化，则先用 GymnasiumWrapper 包装，再用 DummyVecEnv 包装
         if not isinstance(env, VecEnv):
-            self.env = DummyVecEnv([lambda: env])
+            self.env = DummyVecEnv([lambda: GymnasiumWrapper(env)])
         else:
             self.env = env
         
@@ -36,7 +56,9 @@ class SB3PPOTrainer:
         self.model = PPO(
             policy="MlpPolicy",
             env=self.env,
-            policy_kwargs={"net_arch": [dict(pi=[256, 256 , 128], vf=[256,256,128])]},
+            # policy_kwargs={"net_arch": [dict(pi=[256, 256 , 128], vf=[256,256,128])]},
+            policy_kwargs={"net_arch": dict(pi=[128, 64], vf=[128, 64])},
+
             learning_rate=learning_rate,
             n_steps=n_steps,
             batch_size=batch_size,
@@ -45,7 +67,8 @@ class SB3PPOTrainer:
             clip_range=clip_range,
             ent_coef=ent_coef,
             verbose=1,
-            seed=seed,
+            # seed=seed,
+            # device="cpu",  # 设置使用 GPU
             tensorboard_log="./sb3_tensorboard/"
         )
         
@@ -62,7 +85,7 @@ class SB3PPOTrainer:
         self.writer = SummaryWriter(log_dir="./sb3_tensorboard/")
         
         self.callback = SB3CustomCallback(
-            save_freq=10000,
+            save_freq=100000,
             save_path="./sb3_checkpoints/",
             model=self.model,
             writer=self.writer,
@@ -115,9 +138,10 @@ class SB3CustomCallback(BaseCallback):
                     self.episode_rewards.append(info["episode"]["r"])
                     self.steps.append(self.num_timesteps)
                     print(f"Episode ended at step {self.num_timesteps}, reward: {info['episode']['r']}")
-                    self._update_plot()
+                    
         if self.num_timesteps % self.save_freq == 0:
             save_path = f"{self.save_path}/ppo_quad_{self.num_timesteps}"
+            self._update_plot()
             self.model.save(save_path)
         return True
 
