@@ -320,6 +320,9 @@
         <mass value="${mass_imu_sensor}" />  <!-- [kg] -->
         <origin xyz="0 0 0" rpy="0 0 0" />
       </inertial>
+          <gazebo>
+    <disable_collisions>true</disable_collisions>
+  </gazebo>
     </link>
     <!-- IMU joint -->
     <joint name="${namespace}/imu${imu_suffix}_joint" type="revolute">
@@ -364,6 +367,9 @@
         <xacro:insert_block name="inertia" />
         <mass value="${mass_odometry_sensor}" />  <!-- [kg] -->
       </inertial>
+          <gazebo>
+    <disable_collisions>true</disable_collisions>
+  </gazebo>
     </link>
     <!-- odometry joint -->
     <joint name="${namespace}/odometry_sensor${odometry_sensor_suffix}_joint" type="revolute">
@@ -636,6 +642,9 @@
         <origin xyz="0 0 0" rpy="0 0 0" />
         <inertia ixx="1e-6" ixy="0" ixz="0" iyy="1e-6" iyz="0" izz="1e-6" />
       </inertial>
+       <gazebo>
+    <disable_collisions>true</disable_collisions>
+  </gazebo>
     </link>
     <joint name="${namespace}/camera_${camera_suffix}_joint" type="fixed">
       <xacro:insert_block name="origin" />
@@ -701,7 +710,9 @@
           <box size="0.03 0.133 0.057" />
         </geometry>
       </collision>
-
+ <gazebo>
+    <disable_collisions>true</disable_collisions>
+  </gazebo>
       <visual>
         <origin xyz="0 0 0" rpy="0 0 0" />
         <geometry>

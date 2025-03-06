@@ -20,6 +20,9 @@
 -->
 
 <robot name="hummingbird" xmlns:xacro="http://ros.org/wiki/xacro">
+
+  <xacro:property name="disable_collisions" value="true" />
+
   <!-- Properties (Taken from Novel Dynamic Inversion Architecture Design
 for Quadrocopter Control by Jian Wang et al.) -->
   <xacro:property name="namespace" value="$(arg namespace)" />

@@ -257,7 +257,7 @@
       <remap from="autopilot/state_estimate" to="ground_truth/odometry" />
     </node>
     
-  </group>
+  </group> 
 
   <!-- <group ns="hummingbird10">
     <include file="$(find rotors_gazebo)/launch/spawn_mav_RL.launch">

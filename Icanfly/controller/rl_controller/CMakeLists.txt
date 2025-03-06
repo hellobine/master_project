@@ -20,9 +20,9 @@ catkin_package(
 # Python 代码不需要 C++ 编译，但需要安装脚本
 catkin_install_python(PROGRAMS
   scripts/autopilot_rl_instance.py
-  scripts/rl_trainer.py
-  scripts/environment.py
-  scripts/network.py
+  # scripts/rl_trainer.py
+  # scripts/environment.py
+  # scripts/network.py
   scripts/stable_baseline3_env.py
   scripts/stable_baseline3_train.py
   scripts/stable_baseline3_policy.py
