@@ -64,6 +64,9 @@ class QuadrotorEnv(gym.Env):
         self.episode_reward = 0
         self.prev_action_ = None
 
+        self.angular_x = 0
+        self.angular_y = 0
+        self.angular_z = 0
         rospy.sleep(1.0)
     
         if not rospy.is_shutdown():
@@ -72,19 +75,23 @@ class QuadrotorEnv(gym.Env):
             rospy.loginfo("Published arm message: true")
 
     def odom_callback(self, msg):
-        with self.state_lock:
-            self.current_state = np.array([
-                msg.pose.pose.position.x, 
-                msg.pose.pose.position.y, 
-                msg.pose.pose.position.z,
-                msg.pose.pose.orientation.x,
-                msg.pose.pose.orientation.y,
-                msg.pose.pose.orientation.z,
-                msg.pose.pose.orientation.w,
-                msg.twist.twist.linear.x,
-                msg.twist.twist.linear.y,
-                msg.twist.twist.linear.z
-            ], dtype=np.float32)
+        # with self.state_lock:
+        self.current_state = np.array([
+            msg.pose.pose.position.x, 
+            msg.pose.pose.position.y, 
+            msg.pose.pose.position.z,
+            msg.pose.pose.orientation.x,
+            msg.pose.pose.orientation.y,
+            msg.pose.pose.orientation.z,
+            msg.pose.pose.orientation.w,
+            msg.twist.twist.linear.x,
+            msg.twist.twist.linear.y,
+            msg.twist.twist.linear.z
+        ], dtype=np.float32)
+
+        self.angular_x = msg.twist.twist.angular.x
+        self.angular_y = msg.twist.twist.angular.y
+        self.angular_z = msg.twist.twist.angular.z
 
 
 
@@ -100,8 +107,8 @@ class QuadrotorEnv(gym.Env):
         self._publish_action(action)
         self.rate.sleep()
         
-        with self.state_lock:
-            obs = self.current_state.copy()
+        # with self.state_lock:
+        obs = self.current_state.copy()
 
         roll, pitch, _ = self._quaternion_to_euler(obs[3], obs[4], obs[5], obs[6])
         if abs(roll) > np.pi/2 or abs(pitch) > np.pi/2:
@@ -134,9 +141,9 @@ class QuadrotorEnv(gym.Env):
         self.episode_reward = 0
         self.prev_action_ = None
         self._reset_drone_pose()
-        # rospy.sleep(0.001)  # 等待复位完成
-        with self.state_lock:
-            obs = self.current_state.copy()
+        rospy.sleep(0.001)  # 等待复位完成
+        # with self.state_lock:
+        obs = self.current_state.copy()
         return obs, {}
     
 
@@ -148,7 +155,7 @@ class QuadrotorEnv(gym.Env):
         ])
 
         init_orientation = np.random.uniform(-0.4, 0.4, size=3)  # 近似水平的随机扰动
-        init_velocity = np.random.uniform(-3, 3, size=3)  # 低速随机初始化
+        init_velocity = np.random.uniform(-1, 1, size=3)  # 低速随机初始化 #init_velocity = np.random.uniform(-3, 3, size=3)  # 低速随机初始化
         init_angular_velocity = np.random.uniform(-0.1, 0.1, size=3)  # 低速角速度初始化
 
         # 发布到 Gazebo 进行物理仿真复位
@@ -161,12 +168,24 @@ class QuadrotorEnv(gym.Env):
         state.pose.orientation.y = 0
         state.pose.orientation.z = 0
         state.pose.orientation.w = 1.0  # 保持单位四元数
-        # state.twist.linear.x=init_velocity[0]
-        # state.twist.linear.y=init_velocity[1]
-        # state.twist.linear.z=init_velocity[2]
-        # state.twist.angular.x=init_angular_velocity[0]
-        # state.twist.angular.y=init_angular_velocity[1]
-        # state.twist.angular.z=init_angular_velocity[2]
+        
+        state.model_name = self.namespace  # 确保命名空间匹配 Gazebo 的无人机模型
+        state.pose.position.x = 0
+        state.pose.position.y = 0
+        state.pose.position.z = 3
+        state.pose.orientation.x = 0
+        state.pose.orientation.y = 0
+        state.pose.orientation.z = 0
+        state.pose.orientation.w = 1.0  # 保持单位四元数
+
+
+        state.twist.linear.x=init_velocity[0]
+        state.twist.linear.y=init_velocity[1]
+        state.twist.linear.z=init_velocity[2]
+
+        state.twist.angular.x=init_angular_velocity[0]
+        state.twist.angular.y=init_angular_velocity[1]
+        state.twist.angular.z=init_angular_velocity[2]
 
         pub = rospy.Publisher('/gazebo/set_model_state', ModelState, queue_size=1)
         pub.publish(state)
@@ -273,22 +292,29 @@ class QuadrotorEnv(gym.Env):
         r_smooth = 1.0 - (abs(action_diff) / 100)
         # print(r_smooth)
         # 平滑奖励权重 λ，选取 0.4（与注释保持一致）
-        lambda_val = 0.2
+        lambda_val = 1.1
 
         # 悬停奖励：当当前位置接近目标且速度较低时给予额外奖励
         # 假设 obs 中索引 7 至 9 表示线速度信息
         lin_vel = obs[7:10]
         vel_norm = np.linalg.norm(lin_vel)
-        hover_vel_threshold = 0.5  # 悬停状态速度阈值（单位：m/s）
-        if pos_error < 0.5 and vel_norm < hover_vel_threshold:
-            r_hover = 1.0  # 强悬停奖励
+        ang_norm = np.linalg.norm(np.array([self.angular_x, self.angular_y, self.angular_z]))
+
+        # print(ang_norm)
+
+        hover_vel_threshold = 0.2 
+        hover_ang_threshold = 0.2
+        if pos_error < 0.5 and vel_norm < hover_vel_threshold and ang_norm < hover_ang_threshold:
+            r_hover = 5.0  # 强悬停奖励
+        elif pos_error < 0.5 and vel_norm < hover_vel_threshold:
+            r_hover = 3.0  # 强悬停奖励
         elif pos_error < 0.5:
             r_hover = 0.3
         else:
             r_hover = 0.0
 
         # 整体奖励由任务奖励、动作平滑奖励和悬停奖励构成
-        reward = 1.2 *r_task + lambda_val * r_smooth + 0.7 *r_hover 
+        reward = 1.2 *r_task + lambda_val*r_smooth + 0.7 *r_hover 
         # reward = 1.2 *r_task + 0.7 *r_hover 
 
         # 更新上一时刻动作，用于下次    计算动作平滑奖励

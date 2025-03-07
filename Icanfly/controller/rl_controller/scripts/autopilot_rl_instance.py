@@ -35,7 +35,7 @@ def make_env(rank, base_namespace="hummingbird"):
 if __name__ == "__main__":
     rospy.init_node('quadrotor_rl_node', anonymous=True)
     
-    train_flag = True
+    train_flag = False
     num_envs = 10  # 根据需求调整并行环境数量
     env_fns = [make_env(i) for i in range(num_envs)]
     vec_env = SubprocVecEnv(env_fns)
@@ -45,7 +45,7 @@ if __name__ == "__main__":
         total_timesteps=1_000_000_00,
         batch_size=128*num_envs,
         n_steps=128,
-        learning_rate=1e-3,
+        learning_rate=1e-4,
         model_path="sb3_quadrotor_hover"
     )
     
@@ -64,13 +64,13 @@ if __name__ == "__main__":
     else:
         # 如果需要运行控制模式，则使用其中一个实例（例如 drone_0）
         env = QuadrotorEnv(namespace="hummingbird1")
-        obs = env.reset()
+        obs, _ = env.reset()
         rate = rospy.Rate(50)
         rospy.loginfo("Entering control loop...")
         while not rospy.is_shutdown():
             action, _ = trainer.model.predict(obs, deterministic=True)
-            obs, reward, done, info = env.step(action)
-            if done:
+            obs, reward, terminated, truncated, info = env.step(action)
+            if truncated:
                 rospy.loginfo("Episode finished, resetting environment.")
-                obs = env.reset()
+                obs,_ = env.reset()
             rate.sleep()
