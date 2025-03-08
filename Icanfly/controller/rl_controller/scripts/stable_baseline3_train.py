@@ -85,7 +85,7 @@ class SB3PPOTrainer:
         self.writer = SummaryWriter(log_dir="./sb3_tensorboard/")
         
         self.callback = SB3CustomCallback(
-            save_freq=10000,
+            save_freq=50000,
             save_path="./sb3_checkpoints/",
             model=self.model,
             writer=self.writer,

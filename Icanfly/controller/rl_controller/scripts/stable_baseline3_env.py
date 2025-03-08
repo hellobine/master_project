@@ -75,23 +75,23 @@ class QuadrotorEnv(gym.Env):
             rospy.loginfo("Published arm message: true")
 
     def odom_callback(self, msg):
-        # with self.state_lock:
-        self.current_state = np.array([
-            msg.pose.pose.position.x, 
-            msg.pose.pose.position.y, 
-            msg.pose.pose.position.z,
-            msg.pose.pose.orientation.x,
-            msg.pose.pose.orientation.y,
-            msg.pose.pose.orientation.z,
-            msg.pose.pose.orientation.w,
-            msg.twist.twist.linear.x,
-            msg.twist.twist.linear.y,
-            msg.twist.twist.linear.z
-        ], dtype=np.float32)
+        with self.state_lock:
+            self.current_state = np.array([
+                msg.pose.pose.position.x, 
+                msg.pose.pose.position.y, 
+                msg.pose.pose.position.z,
+                msg.pose.pose.orientation.x,
+                msg.pose.pose.orientation.y,
+                msg.pose.pose.orientation.z,
+                msg.pose.pose.orientation.w,
+                msg.twist.twist.linear.x,
+                msg.twist.twist.linear.y,
+                msg.twist.twist.linear.z
+            ], dtype=np.float32)
 
-        self.angular_x = msg.twist.twist.angular.x
-        self.angular_y = msg.twist.twist.angular.y
-        self.angular_z = msg.twist.twist.angular.z
+            # self.angular_x = msg.twist.twist.angular.x
+            # self.angular_y = msg.twist.twist.angular.y
+            # self.angular_z = msg.twist.twist.angular.z
 
 
 
@@ -107,22 +107,25 @@ class QuadrotorEnv(gym.Env):
         self._publish_action(action)
         self.rate.sleep()
         
-        # with self.state_lock:
-        obs = self.current_state.copy()
+        with self.state_lock:
+            obs = self.current_state.copy()
+
+
+            # info = {"reason": "side flip", "reward": reward}
+            # terminated = True
+            # truncated = False
+            # return obs, reward, terminated, truncated, info
+
+        reward = self._compute_reward(obs, action)
 
         roll, pitch, _ = self._quaternion_to_euler(obs[3], obs[4], obs[5], obs[6])
         if abs(roll) > np.pi/2 or abs(pitch) > np.pi/2:
             reward = -10.0  # 侧翻时给予较大的惩罚
-            info = {"reason": "side flip", "reward": reward}
-            terminated = True
-            truncated = False
-            return obs, reward, terminated, truncated, info
 
-        reward = self._compute_reward(obs, action)
         self.episode_reward += reward
 
         # 判断是否结束
-        if self.step_count >= self.max_episode_steps or self._check_done(obs):
+        if self.step_count >= self.max_episode_steps or self._check_done(obs) or obs[2] < 0:
             terminated = False
             truncated = True
             info = {"reward": reward, "episode": {"r": self.episode_reward, "l": self.step_count}}
@@ -141,9 +144,9 @@ class QuadrotorEnv(gym.Env):
         self.episode_reward = 0
         self.prev_action_ = None
         self._reset_drone_pose()
-        rospy.sleep(0.001)  # 等待复位完成
-        # with self.state_lock:
-        obs = self.current_state.copy()
+        # rospy.sleep(0.001)  # 等待复位完成
+        with self.state_lock:
+            obs = self.current_state.copy()
         return obs, {}
     
 
@@ -155,7 +158,7 @@ class QuadrotorEnv(gym.Env):
         ])
 
         init_orientation = np.random.uniform(-0.4, 0.4, size=3)  # 近似水平的随机扰动
-        init_velocity = np.random.uniform(-1, 1, size=3)  # 低速随机初始化 #init_velocity = np.random.uniform(-3, 3, size=3)  # 低速随机初始化
+        init_velocity = np.random.uniform(0, 1, size=3)  # 低速随机初始化 #init_velocity = np.random.uniform(-3, 3, size=3)  # 低速随机初始化
         init_angular_velocity = np.random.uniform(-0.1, 0.1, size=3)  # 低速角速度初始化
 
         # 发布到 Gazebo 进行物理仿真复位
@@ -164,28 +167,28 @@ class QuadrotorEnv(gym.Env):
         state.pose.position.x = init_position[0]
         state.pose.position.y = init_position[1]
         state.pose.position.z = 0.2
-        state.pose.orientation.x = 0
-        state.pose.orientation.y = 0
-        state.pose.orientation.z = 0
+        state.pose.orientation.x = init_orientation[0]
+        state.pose.orientation.y = init_orientation[1]
+        state.pose.orientation.z = init_orientation[2]
         state.pose.orientation.w = 1.0  # 保持单位四元数
         
-        state.model_name = self.namespace  # 确保命名空间匹配 Gazebo 的无人机模型
-        state.pose.position.x = 0
-        state.pose.position.y = 0
-        state.pose.position.z = 3
-        state.pose.orientation.x = 0
-        state.pose.orientation.y = 0
-        state.pose.orientation.z = 0
-        state.pose.orientation.w = 1.0  # 保持单位四元数
+        # state.model_name = self.namespace  # 确保命名空间匹配 Gazebo 的无人机模型
+        # state.pose.position.x = 0
+        # state.pose.position.y = 0
+        # state.pose.position.z = 3
+        # state.pose.orientation.x = 0
+        # state.pose.orientation.y = 0
+        # state.pose.orientation.z = 0
+        # state.pose.orientation.w = 1.0  # 保持单位四元数
 
 
         state.twist.linear.x=init_velocity[0]
         state.twist.linear.y=init_velocity[1]
         state.twist.linear.z=init_velocity[2]
 
-        state.twist.angular.x=init_angular_velocity[0]
-        state.twist.angular.y=init_angular_velocity[1]
-        state.twist.angular.z=init_angular_velocity[2]
+        # state.twist.angular.x=init_angular_velocity[0]
+        # state.twist.angular.y=init_angular_velocity[1]
+        # state.twist.angular.z=init_angular_velocity[2]
 
         pub = rospy.Publisher('/gazebo/set_model_state', ModelState, queue_size=1)
         pub.publish(state)
