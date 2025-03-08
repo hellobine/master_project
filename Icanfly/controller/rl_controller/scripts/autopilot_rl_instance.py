@@ -35,21 +35,21 @@ def make_env(rank, base_namespace="hummingbird"):
 if __name__ == "__main__":
     rospy.init_node('quadrotor_rl_node', anonymous=True)
     
-    train_flag = False
-    num_envs = 10  # 根据需求调整并行环境数量
+    train_flag = True
+    num_envs = 5  # 根据需求调整并行环境数量
     env_fns = [make_env(i) for i in range(num_envs)]
     vec_env = SubprocVecEnv(env_fns)
     
     trainer = SB3PPOTrainer(
         env=vec_env,
         total_timesteps=1_000_000_00,
-        batch_size=128*num_envs,
-        n_steps=128,
+        batch_size=256*num_envs,
+        n_steps=256,
         learning_rate=1e-4,
-        model_path="sb3_quadrotor_hover"
+        model_path="./rl_trajectory_run/sb3_quadrotor_hover"
     )
     
-    checkpoint_path = get_latest_checkpoint("./sb3_checkpoints/")
+    checkpoint_path = get_latest_checkpoint("./rl_trajectory_run/sb3_checkpoints/")
     if checkpoint_path is not None:
         print(f"Found latest checkpoint: {checkpoint_path}")
         trainer.load(checkpoint_path)
@@ -60,13 +60,14 @@ if __name__ == "__main__":
         print("No saved model found, starting fresh training.")
     
     if train_flag:
+        rospy.loginfo("Entering train control loop...")
         trainer.train()
     else:
         # 如果需要运行控制模式，则使用其中一个实例（例如 drone_0）
         env = QuadrotorEnv(namespace="hummingbird1")
         obs, _ = env.reset()
         rate = rospy.Rate(50)
-        rospy.loginfo("Entering control loop...")
+        rospy.loginfo("Entering test control loop...")
         while not rospy.is_shutdown():
             action, _ = trainer.model.predict(obs, deterministic=True)
             obs, reward, terminated, truncated, info = env.step(action)

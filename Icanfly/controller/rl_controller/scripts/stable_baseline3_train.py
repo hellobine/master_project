@@ -32,9 +32,9 @@ class GymnasiumWrapper(gym.Wrapper):
     
 
 class SB3PPOTrainer:
-    def __init__(self, env, total_timesteps=1e9, batch_size=1280, n_steps=128,
+    def __init__(self, env, total_timesteps=1e9, batch_size=1280, n_steps=1280,
                  gamma=0.99, gae_lambda=0.95, clip_range=0.2, ent_coef=0.02,
-                 learning_rate=1e-4, model_path="sb3_ppo_quadrotor"):
+                 learning_rate=1e-4, model_path="./run/sb3_ppo_quadrotor"):
         
         # 设置物理参数（仅用于奖励或网络设计参考）
         self.mass = 0.68
@@ -57,7 +57,7 @@ class SB3PPOTrainer:
             policy="MlpPolicy",
             env=self.env,
             # policy_kwargs={"net_arch": [dict(pi=[256, 256 , 128], vf=[256,256,128])]},
-            policy_kwargs={"net_arch": dict(pi=[128, 64], vf=[128, 64])},
+            policy_kwargs={"net_arch": dict(pi=[128, 128], vf=[128, 128])},
 
             learning_rate=learning_rate,
             n_steps=n_steps,
@@ -69,7 +69,7 @@ class SB3PPOTrainer:
             verbose=1,
             # seed=seed,
             # device="cpu",  # 设置使用 GPU
-            tensorboard_log="./sb3_tensorboard/"
+            tensorboard_log="./rl_trajectory_run/sb3_tensorboard/"
         )
         
         plt.ion()
@@ -82,11 +82,11 @@ class SB3PPOTrainer:
         
         self.episode_rewards = []
         self.steps = []
-        self.writer = SummaryWriter(log_dir="./sb3_tensorboard/")
+        self.writer = SummaryWriter(log_dir="./rl_trajectory_run/sb3_tensorboard/")
         
         self.callback = SB3CustomCallback(
-            save_freq=10000,
-            save_path="./sb3_checkpoints/",
+            save_freq=1000,
+            save_path="./rl_trajectory_run/sb3_checkpoints/",
             model=self.model,
             writer=self.writer,
             ax=self.ax,
@@ -132,6 +132,7 @@ class SB3CustomCallback(BaseCallback):
     def _on_step(self) -> bool:
         if self.locals.get("infos"):
             for info in self.locals["infos"]:
+                
                 if "reward" in info:
                     self.writer.add_scalar("Reward/Step", info["reward"], self.num_timesteps)
                 if "episode" in info:
