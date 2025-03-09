@@ -45,7 +45,7 @@ if __name__ == "__main__":
         total_timesteps=1_000_000_00,
         batch_size=512*num_envs,
         n_steps=512,
-        learning_rate=1e-4,
+        learning_rate=3e-4,
         model_path="./rl_trajectory_run/sb3_quadrotor_hover"
     )
     

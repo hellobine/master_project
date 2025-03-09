@@ -25,8 +25,8 @@ class QuadrotorEnv(gym.Env):
         self.mass = 0.68  # kg
         self.gravity = 9.8066
         self.min_thrust = 1 * self.mass * self.gravity
-        self.max_thrust =  2 * self.mass * self.gravity
-        self.max_angular_rate = 2.0
+        self.max_thrust =  3 * self.mass * self.gravity
+        self.max_angular_rate = 3.0
 
        # 位置 (3), 旋转矩阵 (3x3=9), 线速度 (3), 上一个动作 (4) -> 共 19 维
         self.state_dim = 25  
@@ -146,6 +146,9 @@ class QuadrotorEnv(gym.Env):
         pos = [msg.pose.position.x, 
                msg.pose.position.y,
                msg.pose.position.z]
+        # pos = [0, 
+        #        0,
+        #        3]
         # 将四元数转换为旋转矩阵
         qx = msg.pose.orientation.x
         qy = msg.pose.orientation.y
@@ -293,6 +296,8 @@ class QuadrotorEnv(gym.Env):
         pos_error = np.linalg.norm(curr_pos - target_pos)
         r_position = np.exp(-0.5 * pos_error)
 
+        # print(r_position)
+
         # 2. 速度跟踪奖励
         vel_error = np.linalg.norm(curr_vel - target_vel)
         r_velocity = 0.5 * np.exp(-2.0 * vel_error)
@@ -319,8 +324,9 @@ class QuadrotorEnv(gym.Env):
             r_position +
             r_velocity +
             r_attitude +
-            r_smooth +
-            r_energy
+            r_smooth
+            #   +
+            # r_energy
         )
 
         # 更新历史数据
@@ -330,13 +336,16 @@ class QuadrotorEnv(gym.Env):
     def _check_done(self, obs):
         # 位置失稳检查
         pos_error = np.linalg.norm(obs[0:3] - self.desired_state[0:3])
-        if pos_error > self.max_position_error or obs[2] < 0.1:
+        if pos_error > self.max_position_error or obs[2] < 0:
             return True
         
         # 姿态异常检查
-        # current_rot = obs[3:12].reshape(3,3)
-        # if np.abs(np.trace(current_rot) - 1) > 1e-3:  # 检查旋转矩阵有效性
-        #     return True
+            # 姿态检查：检测侧翻（roll 超过阈值）
+        current_rot = obs[3:12].reshape(3,3)
+        # 直接从旋转矩阵中计算 roll: roll = arctan2(R[2,1], R[2,2])
+        roll = np.arctan2(current_rot[2,1], current_rot[2,2])
+        if np.abs(roll) > 1.0:  # 阈值 1.0 弧度（约57°），可根据需求调整
+            return True
         
         # 速度失控检查
         if np.linalg.norm(obs[12:15]) > 8.0:  # 最大允许速度
