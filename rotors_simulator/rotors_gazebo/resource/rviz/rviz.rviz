@@ -7,12 +7,10 @@ Panels:
         - /Global Options1
         - /Status1
         - /Grid1
-        - /Axes1
         - /Marker1
         - /Odometry1
         - /Path1
         - /Path1/Offset1
-        - /Pose1
       Splitter Ratio: 0.5
     Tree Height: 1245
   - Class: rviz/Selection
@@ -69,21 +67,12 @@ Visualization Manager:
       Topic: /hummingbird/odometry_sensor1/position
       Unreliable: false
       Value: true
-    - Alpha: 1
-      Class: rviz/Axes
-      Enabled: true
-      Length: 1
-      Name: Axes
-      Radius: 0.10000000149011612
-      Reference Frame: hummingbird/base_link
-      Show Trail: false
-      Value: true
     - Class: rviz/Marker
       Enabled: true
       Marker Topic: /hummingbird/global_trajectory
       Name: Marker
       Namespaces:
-        trajectory: true
+        {}
       Queue Size: 100
       Value: true
     - Angle Tolerance: 0.10000000149011612
@@ -145,20 +134,34 @@ Visualization Manager:
       Topic: /hummingbird/mpc/trajectory_predicted
       Unreliable: false
       Value: true
-    - Alpha: 1
-      Axes Length: 1
-      Axes Radius: 0.10000000149011612
-      Class: rviz/Pose
-      Color: 25; 255; 0
+    - Class: rviz/Marker
       Enabled: true
-      Head Length: 0.30000001192092896
-      Head Radius: 0.10000000149011612
-      Name: Pose
+      Marker Topic: /RL/sendReferenceState
+      Name: Marker
+      Namespaces:
+        trajectory_points: true
+      Queue Size: 100
+      Value: true
+    - Alpha: 1
+      Class: rviz/PointStamped
+      Color: 204; 41; 204
+      Enabled: true
+      History Length: 1
+      Name: PointStamped
       Queue Size: 10
-      Shaft Length: 1
-      Shaft Radius: 0.05000000074505806
-      Shape: Axes
-      Topic: /hummingbird/autopilot/reference_tracking_point
+      Radius: 0.20000000298023224
+      Topic: /hummingbird0/ground_truth/position
+      Unreliable: false
+      Value: true
+    - Alpha: 1
+      Class: rviz/PointStamped
+      Color: 204; 41; 204
+      Enabled: true
+      History Length: 1
+      Name: PointStamped
+      Queue Size: 10
+      Radius: 0.20000000298023224
+      Topic: /hummingbird1/ground_truth/position
       Unreliable: false
       Value: true
   Enabled: true
@@ -189,7 +192,7 @@ Visualization Manager:
   Views:
     Current:
       Class: rviz/Orbit
-      Distance: 16.739953994750977
+      Distance: 26.340641021728516
       Enable Stereo Rendering:
         Stereo Eye Separation: 0.05999999865889549
         Stereo Focal Distance: 1

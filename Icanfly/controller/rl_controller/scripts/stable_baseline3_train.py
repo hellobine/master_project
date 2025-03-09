@@ -32,16 +32,10 @@ class GymnasiumWrapper(gym.Wrapper):
     
 
 class SB3PPOTrainer:
-    def __init__(self, env, total_timesteps=1e9, batch_size=1280, n_steps=1280,
-                 gamma=0.99, gae_lambda=0.95, clip_range=0.2, ent_coef=0.02,
+    def __init__(self, env, total_timesteps=1e9, batch_size=128, n_steps=128,
+                 gamma=0.99, gae_lambda=0.95, clip_range=0.2, ent_coef=0.2,
                  learning_rate=1e-4, model_path="./run/sb3_ppo_quadrotor"):
         
-        # 设置物理参数（仅用于奖励或网络设计参考）
-        self.mass = 0.68
-        self.min_thrust = 9.2
-        self.max_thrust = 40
-
-
         
         # 如果传入的环境未向量化，则先用 GymnasiumWrapper 包装，再用 DummyVecEnv 包装
         if not isinstance(env, VecEnv):
@@ -85,7 +79,7 @@ class SB3PPOTrainer:
         self.writer = SummaryWriter(log_dir="./rl_trajectory_run/sb3_tensorboard/")
         
         self.callback = SB3CustomCallback(
-            save_freq=1000,
+            save_freq=10000,
             save_path="./rl_trajectory_run/sb3_checkpoints/",
             model=self.model,
             writer=self.writer,

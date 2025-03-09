@@ -6,7 +6,8 @@ from gymnasium import spaces
 import rospy
 from geometry_msgs.msg import PoseStamped, TwistStamped, Vector3
 from nav_msgs.msg import Odometry
-from quadrotor_msgs.msg import ControlCommand
+from quadrotor_msgs.msg import ControlCommand, TrajectoryPoint 
+
 from gazebo_msgs.msg import ModelState
 from rotors_comm.msg import WindSpeed
 import threading
@@ -22,31 +23,35 @@ class QuadrotorEnv(gym.Env):
 
         # 物理参数
         self.mass = 0.68  # kg
-        self.gravity = 9.81
-        self.min_thrust = 9.2
-        self.max_thrust = 40
-        self.max_angular_rate = 3.0
+        self.gravity = 9.8066
+        self.min_thrust = 1 * self.mass * self.gravity
+        self.max_thrust =  2 * self.mass * self.gravity
+        self.max_angular_rate = 2.0
 
-        # Gym 空间定义（这里只使用位置信息）
-        self.state_dim = 13  # [px, py, pz, qx, qy, qz, qw, vx, vy, vz, ang_x, ang_y, ang_z]
+       # 位置 (3), 旋转矩阵 (3x3=9), 线速度 (3), 上一个动作 (4) -> 共 19 维
+        self.state_dim = 25  
         self.action_dim = 4  # [推力, ωx, ωy, ωz]
         
-        
-        # self.observation_space = spaces.Box(
-        #     low=-np.inf, high=np.inf, 
-        #     shape=(self.state_dim,), dtype=np.float32
-        # )
 
         self.observation_space = spaces.Box(
-        low=np.array([0, 0, 0, -1, -1, -1, -1, -5, -5, -5, -5, -5, -5], dtype=np.float32),
-        high=np.array([5, 5, 5, 1, 1, 1, 1, 5, 5, 5, 5, 5, 5], dtype=np.float32),
-        dtype=np.float32
+            low=np.concatenate((
+                np.full(3, -5),          # 当前位置
+                np.full(9, -1),          # 旋转矩阵
+                np.full(3, -5),          # 当前线速度
+                np.full(3, -5),          # 目标相对位置
+                np.full(3, -5),          # 目标相对速度
+                np.full(4, -1)           # 上一步动作
+            )),
+            high=np.concatenate((
+                np.full(3, 5),
+                np.full(9, 1),
+                np.full(3, 5),
+                np.full(3, 5),
+                np.full(3, 5),
+                np.full(4, 1)
+            )),
+            dtype=np.float32
         )
-
-        # self.action_space = spaces.Box(
-        #     low=np.array([self.min_thrust, -self.max_angular_rate, -self.max_angular_rate, -self.max_angular_rate], dtype=np.float32),
-        #     high=np.array([self.max_thrust, self.max_angular_rate, self.max_angular_rate, self.max_angular_rate], dtype=np.float32),
-        #     dtype=np.float32)
 
         self.action_space = spaces.Box(
             low=np.array([-1]*self.action_dim, dtype=np.float32),
@@ -58,68 +63,101 @@ class QuadrotorEnv(gym.Env):
         if not rospy.core.is_initialized():
             rospy.init_node(f'{self.namespace}_quadrotor_sb3_env', anonymous=True)
         
-        # 订阅和发布（话题前缀使用命名空间）
-        self.odom_sub = rospy.Subscriber(f'/{self.namespace}/ground_truth/odometry', Odometry, self.odom_callback)
-        self.cmd_pub = rospy.Publisher(f'/{self.namespace}/control_command', ControlCommand, queue_size=1)
-        self.arm_pub = rospy.Publisher(f'/{self.namespace}/bridge/arm', Bool, queue_size=1)
-        
-        self.windspeed_pub = rospy.Publisher(f'/{self.namespace}/wind_speed', WindSpeed, queue_size=1)
-        # self.state_lock = threading.Lock()
-
+    
         # 控制频率
         self.control_hz = 50.0
         self.rate = rospy.Rate(self.control_hz)
         self.current_state = np.zeros(self.state_dim, dtype=np.float32)
-        self.desired_state = np.array([0, 0, 3, 0, 0, 0, 1, 0, 0, 0,], dtype=np.float32)
-
+        self.desired_state = np.array(
+            [0, 0, 3] + [1, 0, 0, 0, 1, 0, 0, 0, 1] + [0, 0, 0] + [0, 0, 0, 0],
+            dtype=np.float32
+        )
         # 安全和步数设置
         self.max_position_error = 5.0  # 米
-        self.max_episode_steps = 256
+        self.max_episode_steps = 512
         self.step_count = 0
         self.episode_reward = 0
 
         
         self.prev_action_ = None
-        self.prev_position = None  # 保存上一时刻位置信息
+        self.prev_position = None 
 
 
         self.angular_x = 0
         self.angular_y = 0
         self.angular_z = 0
+
+         # 订阅和发布（话题前缀使用命名空间）
+        self.odom_sub = rospy.Subscriber(f'/{self.namespace}/ground_truth/odometry', Odometry, self.odom_callback)
+        self.cmd_pub = rospy.Publisher(f'/{self.namespace}/control_command', ControlCommand, queue_size=1)
+        self.arm_pub = rospy.Publisher(f'/{self.namespace}/bridge/arm', Bool, queue_size=1)
+        self.reference_state_sub = rospy.Subscriber('/autopilot/reference_state', TrajectoryPoint, self.reference_state_callback)
+
+        
+        self.windspeed_pub = rospy.Publisher(f'/{self.namespace}/wind_speed', WindSpeed, queue_size=1)
+   
+
         rospy.sleep(1.0)
     
         if not rospy.is_shutdown():
             msg = Bool(data=True)
             self.arm_pub.publish(msg)
             rospy.loginfo("Published arm message: true")
-
+    
+    
+    def _quaternion_to_rotation_matrix(self, x, y, z, w):
+        """将四元数转换为旋转矩阵（3x3），注意四元数顺序为 (x, y, z, w)"""
+        R = np.array([
+            [1 - 2*(y**2 + z**2),     2*(x*y - z*w),         2*(x*z + y*w)],
+            [2*(x*y + z*w),           1 - 2*(x**2 + z**2),    2*(y*z - x*w)],
+            [2*(x*z - y*w),           2*(y*z + x*w),         1 - 2*(x**2 + y**2)]
+        ], dtype=np.float32)
+        return R
+        
     def odom_callback(self, msg):
         with self.state_lock:
-            self.current_state = np.array([
-                msg.pose.pose.position.x, 
-                msg.pose.pose.position.y,
-                msg.pose.pose.position.z,
-                msg.pose.pose.orientation.x,
-                msg.pose.pose.orientation.y,
-                msg.pose.pose.orientation.z,
-                msg.pose.pose.orientation.w,
-                msg.twist.twist.linear.x,
-                msg.twist.twist.linear.y,
-                msg.twist.twist.linear.z,
-                msg.twist.twist.angular.x,
-                msg.twist.twist.angular.y,
-                msg.twist.twist.angular.z
-            ], dtype=np.float32)
+            # 获取位置
+            pos = [msg.pose.pose.position.x, 
+                   msg.pose.pose.position.y,
+                   msg.pose.pose.position.z]
+            # 从四元数转换为旋转矩阵
+            qx = msg.pose.pose.orientation.x
+            qy = msg.pose.pose.orientation.y
+            qz = msg.pose.pose.orientation.z
+            qw = msg.pose.pose.orientation.w
+            rot_mat = self._quaternion_to_rotation_matrix(qx, qy, qz, qw).flatten()
+            # 获取线速度（不包含角速度）
+            lin_vel = [msg.twist.twist.linear.x,
+                       msg.twist.twist.linear.y,
+                       msg.twist.twist.linear.z]
+            # 获取上一个动作，如果未记录则用全零向量
+            prev_action = self.prev_action_ if self.prev_action_ is not None else np.zeros(self.action_dim, dtype=np.float32)
+            # 组装状态：位置 (3) + 旋转矩阵 (9) + 线速度 (3) + 上一个动作 (4)
+            target_pos = self.desired_state[0:3]
+            target_vel = self.desired_state[12:15]
+            self.current_state = np.array(
+                pos + rot_mat.tolist() + lin_vel + 
+                target_pos.tolist() + target_vel.tolist() + 
+                prev_action.tolist(), dtype=np.float32
+            )
 
-
-
-
-            # wind_speed_msg = WindSpeed()
-            # wind_speed_msg.header.stamp = rospy.Time.now()
-            # wind_speed_msg.header.frame_id = "world"
-            # wind_speed_msg.velocity = Vector3(0.0, 0.0, -100.0)
-            # 可根据需要发布风速消息，此处暂未调用：
-            # self.windspeed_pub.publish(wind_speed_msg)
+    def reference_state_callback(self, msg):
+        # 获取位置
+        pos = [msg.pose.position.x, 
+               msg.pose.position.y,
+               msg.pose.position.z]
+        # 将四元数转换为旋转矩阵
+        qx = msg.pose.orientation.x
+        qy = msg.pose.orientation.y
+        qz = msg.pose.orientation.z
+        qw = msg.pose.orientation.w
+        rot_mat = self._quaternion_to_rotation_matrix(qx, qy, qz, qw).flatten()
+        # 获取线速度
+        lin_vel = [msg.velocity.linear.x,
+                   msg.velocity.linear.y,
+                   msg.velocity.linear.z]
+        # 期望状态中，上一个动作部分固定为零
+        self.desired_state = np.array(pos + rot_mat.tolist() + lin_vel, dtype=np.float32)
 
     def step(self, action):
         self.step_count += 1
@@ -158,12 +196,8 @@ class QuadrotorEnv(gym.Env):
             self.episode_reward = 0
             self.step_count = 0
 
-        error_obs = obs.copy()
-        error_obs[0] = abs(obs[0]-self.desired_state[0])
-        error_obs[1] = abs(obs[1]-self.desired_state[1])
-        error_obs[2] = abs(obs[2]-self.desired_state[2])
-      
-        return error_obs, reward, terminated, truncated, info
+
+        return obs, reward, terminated, truncated, info
 
     def reset(self, **kwargs):
         self.step_count = 0
@@ -172,12 +206,7 @@ class QuadrotorEnv(gym.Env):
         self._reset_drone_pose()
         rospy.sleep(0.001)  # 等待复位完成
         with self.state_lock:
-
             obs = self.current_state.copy()
-            error_obs = obs.copy()
-            error_obs[0] = abs(obs[0]-self.desired_state[0])
-            error_obs[1] = abs(obs[1]-self.desired_state[1])
-            error_obs[2] = abs(obs[2]-self.desired_state[2])
         return obs, {}
     
 
@@ -192,26 +221,15 @@ class QuadrotorEnv(gym.Env):
         init_velocity = np.random.uniform(-1, 1, size=3)  # 低速随机初始化 #init_velocity = np.random.uniform(-3, 3, size=3)  # 低速随机初始化
         init_angular_velocity = np.random.uniform(-0.1, 0.1, size=3)  # 低速角速度初始化
 
-        # 发布到 Gazebo 进行物理仿真复位
         state = ModelState()
         state.model_name = self.namespace  # 确保命名空间匹配 Gazebo 的无人机模型
-        state.pose.position.x = init_position[0]
-        state.pose.position.y = init_position[1]
+        state.pose.position.x = 0
+        state.pose.position.y = 0
         state.pose.position.z = 0.2
         state.pose.orientation.x = 0
         state.pose.orientation.y = 0
         state.pose.orientation.z = 0
         state.pose.orientation.w = 1.0  # 保持单位四元数
-        
-        # state.model_name = self.namespace  # 确保命名空间匹配 Gazebo 的无人机模型
-        # state.pose.position.x = 0
-        # state.pose.position.y = 0
-        # state.pose.position.z = 3
-        # state.pose.orientation.x = 0
-        # state.pose.orientation.y = 0
-        # state.pose.orientation.z = 0
-        # state.pose.orientation.w = 1.0  # 保持单位四元数
-
 
         state.twist.linear.x=init_velocity[0]
         state.twist.linear.y=init_velocity[1]
@@ -224,14 +242,14 @@ class QuadrotorEnv(gym.Env):
         pub = rospy.Publisher('/gazebo/set_model_state', ModelState, queue_size=1)
         pub.publish(state)
 
-
     def _publish_action(self, action):
+        # print(action)
         cmd = ControlCommand()
         cmd.armed = True
         cmd.control_mode = ControlCommand.BODY_RATES
         # cmd.collective_thrust = float(np.clip(action[0], self.min_thrust, self.max_thrust))
         # cmd.collective_thrust = action[0]
-           # 推力归一化映射到 [min_thrust, max_thrust]
+
         thrust = ((action[0] + 1) / 2) * (self.max_thrust - self.min_thrust) + self.min_thrust
         cmd.collective_thrust = thrust
 
@@ -265,52 +283,67 @@ class QuadrotorEnv(gym.Env):
         return roll, pitch, yaw
 
     def _compute_reward(self, obs, curr_action):
-        # 目标位置（参考轨迹点），例如 [0, 0, 3]
-        target_pos = self.desired_state[0:3]
-
-        # 当前位置信息
+        # 状态分解
         curr_pos = obs[0:3]
+        target_pos = self.desired_state[0:3]
+        curr_vel = obs[12:15]
+        target_vel = self.desired_state[12:15]
         
-        # 如果没有记录上一时刻位置，则将其初始化为当前位置信息
-        if not hasattr(self, 'prev_position') or self.prev_position is None:
-            self.prev_position = curr_pos.copy()
+        # 1. 位置跟踪奖励（指数衰减）
+        pos_error = np.linalg.norm(curr_pos - target_pos)
+        r_position = np.exp(-0.5 * pos_error)
 
-        # 进度奖励：上一时刻与目标的距离减去当前时刻与目标的距离
-        prev_dist = np.linalg.norm(target_pos - self.prev_position)
-        curr_dist = np.linalg.norm(target_pos - curr_pos)
-        r_progress = prev_dist - curr_dist
+        # 2. 速度跟踪奖励
+        vel_error = np.linalg.norm(curr_vel - target_vel)
+        r_velocity = 0.5 * np.exp(-2.0 * vel_error)
 
-        # 角速度惩罚：取 obs[10:13]（假设这部分为角速度）
-        angular_vel = obs[10:13]
-        b = 0.01  # 角速度惩罚系数
-        r_ang = - b * np.linalg.norm(angular_vel)
+        # 3. 姿态稳定奖励（旋转矩阵与目标差异）
+        current_rot = obs[3:12].reshape(3,3)
+        target_rot = self.desired_state[3:12].reshape(3,3)
+        rot_diff = np.arccos((np.trace(current_rot @ target_rot.T) - 1)/2)
+        r_attitude = 0.3 * (1 - np.abs(rot_diff/np.pi))
 
-        # 动作平滑奖励：如果有上一时刻的动作，则计算动作变化量惩罚（取负值）
+        # 4. 动作平滑惩罚
         if self.prev_action_ is not None:
             action_diff = np.linalg.norm(curr_action - self.prev_action_)
-            r_smooth = - (action_diff ** 2)
+            r_smooth = -0.1 * (action_diff ** 2)
         else:
             r_smooth = 0.0
 
-        # 平滑奖励系数
-        lambda_val = 0.4
+        # 5. 能量效率惩罚
+        thrust = ((curr_action[0] + 1)/2) * (self.max_thrust - self.min_thrust) + self.min_thrust
+        r_energy = -0.05 * (thrust/(self.mass*self.gravity))**2
 
-        # 最终奖励为进度奖励 + 角速度惩罚 + 平滑奖励
-        reward = r_progress + r_ang + lambda_val * r_smooth
+        # 合成总奖励
+        total_reward = (
+            r_position +
+            r_velocity +
+            r_attitude +
+            r_smooth +
+            r_energy
+        )
 
-        # 更新上一时刻动作和位置信息
+        # 更新历史数据
         self.prev_action_ = curr_action.copy()
-        self.prev_position = curr_pos.copy()
-
-        return reward
-
-
+        return total_reward
+        
     def _check_done(self, obs):
+        # 位置失稳检查
         pos_error = np.linalg.norm(obs[0:3] - self.desired_state[0:3])
-        # roll, pitch, _ = self._quaternion_to_euler(obs[3], obs[4], obs[5], obs[6])
-
-        return pos_error > self.max_position_error
-
+        if pos_error > self.max_position_error or obs[2] < 0.1:
+            return True
+        
+        # 姿态异常检查
+        # current_rot = obs[3:12].reshape(3,3)
+        # if np.abs(np.trace(current_rot) - 1) > 1e-3:  # 检查旋转矩阵有效性
+        #     return True
+        
+        # 速度失控检查
+        if np.linalg.norm(obs[12:15]) > 8.0:  # 最大允许速度
+            return True
+        
+        return False
+    
     def render(self, mode='human'):
         pass  # Gazebo 自带可视化
 
