@@ -43,9 +43,9 @@ if __name__ == "__main__":
     trainer = SB3PPOTrainer(
         env=vec_env,
         total_timesteps=1_000_000_00,
-        batch_size=512*num_envs,
-        n_steps=512,
-        learning_rate=3e-4,
+        batch_size=128*num_envs,
+        n_steps=128,
+        learning_rate=1e-4,
         model_path="./rl_trajectory_run/sb3_quadrotor_hover"
     )
     
@@ -71,7 +71,7 @@ if __name__ == "__main__":
         while not rospy.is_shutdown():
             action, _ = trainer.model.predict(obs, deterministic=True)
             obs, reward, terminated, truncated, info = env.step(action)
-            if truncated:
-                rospy.loginfo("Episode finished, resetting environment.")
-                obs,_ = env.reset()
+            # if truncated:
+            #     rospy.loginfo("Episode finished, resetting environment.")
+            #     obs,_ = env.reset()
             rate.sleep()

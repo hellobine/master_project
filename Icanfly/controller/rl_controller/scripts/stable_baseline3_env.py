@@ -6,7 +6,7 @@ from gymnasium import spaces
 import rospy
 from geometry_msgs.msg import PoseStamped, TwistStamped, Vector3
 from nav_msgs.msg import Odometry
-from quadrotor_msgs.msg import ControlCommand, TrajectoryPoint 
+from quadrotor_msgs.msg import ControlCommand, TrajectoryPoint, Trajectory
 
 from gazebo_msgs.msg import ModelState
 from rotors_comm.msg import WindSpeed
@@ -21,7 +21,6 @@ class QuadrotorEnv(gym.Env):
     
         self.namespace = namespace  # ROS 命名空间，用于区分不同无人机实例
 
-        # 物理参数
         self.mass = 0.68  # kg
         self.gravity = 9.8066
         self.min_thrust = 1 * self.mass * self.gravity
@@ -38,8 +37,8 @@ class QuadrotorEnv(gym.Env):
                 np.full(3, -5),          # 当前位置
                 np.full(9, -1),          # 旋转矩阵
                 np.full(3, -5),          # 当前线速度
-                np.full(3, -5),          # 目标相对位置
-                np.full(3, -5),          # 目标相对速度
+                np.full(3, -5),          # 目标位置
+                np.full(3, -5),          # 目标速度
                 np.full(4, -1)           # 上一步动作
             )),
             high=np.concatenate((
@@ -59,7 +58,6 @@ class QuadrotorEnv(gym.Env):
             dtype=np.float32
         )
 
-        # ROS 初始化（每个实例使用独特的节点名）
         if not rospy.core.is_initialized():
             rospy.init_node(f'{self.namespace}_quadrotor_sb3_env', anonymous=True)
         
@@ -69,29 +67,37 @@ class QuadrotorEnv(gym.Env):
         self.rate = rospy.Rate(self.control_hz)
         self.current_state = np.zeros(self.state_dim, dtype=np.float32)
         self.desired_state = np.array(
-            [0, 0, 3] + [1, 0, 0, 0, 1, 0, 0, 0, 1] + [0, 0, 0] + [0, 0, 0, 0],
+            [0, 0, 3] + [1, 0, 0, 0, 1, 0, 0, 0, 1] + [0, 0, 0],
             dtype=np.float32
         )
-        # 安全和步数设置
+
         self.max_position_error = 5.0  # 米
-        self.max_episode_steps = 512
+        self.max_episode_steps = 128
         self.step_count = 0
         self.episode_reward = 0
 
         
         self.prev_action_ = None
-        self.prev_position = None 
+        self.prev_position = [0,0,0]
 
 
         self.angular_x = 0
         self.angular_y = 0
         self.angular_z = 0
 
-         # 订阅和发布（话题前缀使用命名空间）
+
+        self.reference_trajectory_ = None  # 使用列表模拟队列
+        # self.pnh_ = rospy.get_namespace()  # 这里用 ROS 的命名空间代替参数句柄
+  
+        self.reference_state_ = None  # 例如一个包含 position 属性的对象，position 为 numpy 数组
+        self.kPositionJumpTolerance_ = 0.1  # 示例值，单位与 position 相同
+        self.first_time_in_new_state_=True
+
+    
         self.odom_sub = rospy.Subscriber(f'/{self.namespace}/ground_truth/odometry', Odometry, self.odom_callback)
         self.cmd_pub = rospy.Publisher(f'/{self.namespace}/control_command', ControlCommand, queue_size=1)
         self.arm_pub = rospy.Publisher(f'/{self.namespace}/bridge/arm', Bool, queue_size=1)
-        self.reference_state_sub = rospy.Subscriber('/autopilot/reference_state', TrajectoryPoint, self.reference_state_callback)
+        self.reference_state_sub = rospy.Subscriber('/autopilot/trajectory', Trajectory, self.reference_trajectory_callback)
 
         
         self.windspeed_pub = rospy.Publisher(f'/{self.namespace}/wind_speed', WindSpeed, queue_size=1)
@@ -115,52 +121,79 @@ class QuadrotorEnv(gym.Env):
         return R
         
     def odom_callback(self, msg):
+        if self.reference_trajectory_ is not None:
+            current_time = rospy.Time.now()
+            if self.first_time_in_new_state_:
+                self.first_time_in_new_state_ = False
+                self.time_start_trajectory_execution_ = current_time
+            
+            dt = current_time - self.time_start_trajectory_execution_
+            dt_sec = dt.to_sec()
+
+            ref_point = None
+            for point in self.reference_trajectory_.points:
+                point_time = point.time_from_start.to_sec()
+                if point_time >= dt_sec:
+                    ref_point = point
+                    break
+
+            # 如果 dt 超出所有轨迹点时间，则选取最后一个点
+            if ref_point == None:
+                # ref_point = self.reference_trajectory_.points[-1]
+                self.first_time_in_new_state_=True
+
+
+            pos = [ref_point.pose.position.x, 
+                ref_point.pose.position.y,
+                ref_point.pose.position.z]
+
+            qx = ref_point.pose.orientation.x
+            qy = ref_point.pose.orientation.y
+            qz = ref_point.pose.orientation.z
+            qw = ref_point.pose.orientation.w
+
+            rot_mat = self._quaternion_to_rotation_matrix(qx, qy, qz, qw).flatten()
+
+            lin_vel = [ref_point.velocity.linear.x,
+                    ref_point.velocity.linear.y,
+                    ref_point.velocity.linear.z]
+            
+            self.desired_state = np.array(pos + rot_mat.tolist() + lin_vel , dtype=np.float32)
+
         with self.state_lock:
-            # 获取位置
             pos = [msg.pose.pose.position.x, 
                    msg.pose.pose.position.y,
                    msg.pose.pose.position.z]
-            # 从四元数转换为旋转矩阵
+
             qx = msg.pose.pose.orientation.x
             qy = msg.pose.pose.orientation.y
             qz = msg.pose.pose.orientation.z
             qw = msg.pose.pose.orientation.w
             rot_mat = self._quaternion_to_rotation_matrix(qx, qy, qz, qw).flatten()
-            # 获取线速度（不包含角速度）
+
             lin_vel = [msg.twist.twist.linear.x,
                        msg.twist.twist.linear.y,
                        msg.twist.twist.linear.z]
-            # 获取上一个动作，如果未记录则用全零向量
+
             prev_action = self.prev_action_ if self.prev_action_ is not None else np.zeros(self.action_dim, dtype=np.float32)
-            # 组装状态：位置 (3) + 旋转矩阵 (9) + 线速度 (3) + 上一个动作 (4)
+            
             target_pos = self.desired_state[0:3]
             target_vel = self.desired_state[12:15]
+            target_ori = self.desired_state[3:12]
             self.current_state = np.array(
                 pos + rot_mat.tolist() + lin_vel + 
-                target_pos.tolist() + target_vel.tolist() + 
+                target_pos.tolist() + target_vel.tolist() +
                 prev_action.tolist(), dtype=np.float32
             )
+        # print(self.reference_trajectory_)
+        
 
-    def reference_state_callback(self, msg):
-        # 获取位置
-        pos = [msg.pose.position.x, 
-               msg.pose.position.y,
-               msg.pose.position.z]
-        # pos = [0, 
-        #        0,
-        #        3]
-        # 将四元数转换为旋转矩阵
-        qx = msg.pose.orientation.x
-        qy = msg.pose.orientation.y
-        qz = msg.pose.orientation.z
-        qw = msg.pose.orientation.w
-        rot_mat = self._quaternion_to_rotation_matrix(qx, qy, qz, qw).flatten()
-        # 获取线速度
-        lin_vel = [msg.velocity.linear.x,
-                   msg.velocity.linear.y,
-                   msg.velocity.linear.z]
-        # 期望状态中，上一个动作部分固定为零
-        self.desired_state = np.array(pos + rot_mat.tolist() + lin_vel, dtype=np.float32)
+    def reference_trajectory_callback(self, msg):
+        # print(msg)
+        # if self.reference_trajectory_ == None:
+        #     self.reference_trajectory_ = msg
+        print("---------------------------grhytgfdc-------------------------")
+  
 
     def step(self, action):
         self.step_count += 1
@@ -173,7 +206,6 @@ class QuadrotorEnv(gym.Env):
         reward = self._compute_reward(obs, action)
         self.episode_reward += reward
 
-        # 判断是否结束
         if self.step_count >= self.max_episode_steps or self._check_done(obs):
             # 如果达到最大步数，则标记为截断，否则标记为终止
             if self.step_count >= self.max_episode_steps:
@@ -263,9 +295,7 @@ class QuadrotorEnv(gym.Env):
         cmd.bodyrates.y = bodyrates[1]
         cmd.bodyrates.z = bodyrates[2]
 
-        # cmd.bodyrates.x = np.clip(action[1], -self.max_angular_rate, self.max_angular_rate)
-        # cmd.bodyrates.y = np.clip(action[2], -self.max_angular_rate, self.max_angular_rate)
-        # cmd.bodyrates.z = np.clip(action[3], -self.max_angular_rate, self.max_angular_rate)
+        # self.prev_action_ = []
 
         self.cmd_pub.publish(cmd)
 
@@ -286,21 +316,37 @@ class QuadrotorEnv(gym.Env):
         return roll, pitch, yaw
 
     def _compute_reward(self, obs, curr_action):
-        # 状态分解
+
+
         curr_pos = obs[0:3]
         target_pos = self.desired_state[0:3]
+
+
+
         curr_vel = obs[12:15]
         target_vel = self.desired_state[12:15]
-        
+
+        # print(self.desired_state)
+
+        prev_dist = np.linalg.norm(target_pos - self.prev_position)
+        curr_dist = np.linalg.norm(target_pos - curr_pos)
+        r_progress_dis = prev_dist - curr_dist
+
+        r_progress = np.tanh(2*r_progress_dis)
+        # print(r_progress)
+
+
         # 1. 位置跟踪奖励（指数衰减）
         pos_error = np.linalg.norm(curr_pos - target_pos)
         r_position = np.exp(-0.5 * pos_error)
 
-        # print(r_position)
+        # if(r_position<0.2):
+        #     r_position+=10
+
 
         # 2. 速度跟踪奖励
         vel_error = np.linalg.norm(curr_vel - target_vel)
-        r_velocity = 0.5 * np.exp(-2.0 * vel_error)
+        r_velocity = 0.5 * np.exp(-2 * vel_error)
 
         # 3. 姿态稳定奖励（旋转矩阵与目标差异）
         current_rot = obs[3:12].reshape(3,3)
@@ -319,8 +365,10 @@ class QuadrotorEnv(gym.Env):
         thrust = ((curr_action[0] + 1)/2) * (self.max_thrust - self.min_thrust) + self.min_thrust
         r_energy = -0.05 * (thrust/(self.mass*self.gravity))**2
 
+        print(r_progress, r_position, r_velocity, r_attitude, r_smooth)
         # 合成总奖励
         total_reward = (
+            r_progress +
             r_position +
             r_velocity +
             r_attitude +
@@ -331,6 +379,8 @@ class QuadrotorEnv(gym.Env):
 
         # 更新历史数据
         self.prev_action_ = curr_action.copy()
+
+        self.prev_position = curr_pos.copy()
         return total_reward
         
     def _check_done(self, obs):
