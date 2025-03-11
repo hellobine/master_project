@@ -63,7 +63,7 @@ class QuadrotorEnv(gym.Env):
         
     
         # 控制频率
-        self.control_hz = 50.0
+        self.control_hz = 100.0
         self.rate = rospy.Rate(self.control_hz)
         self.current_state = np.zeros(self.state_dim, dtype=np.float32)
         self.desired_state = np.array(
@@ -249,7 +249,7 @@ class QuadrotorEnv(gym.Env):
         init_position = np.array([
             np.random.uniform(-1.0, 1.0),  # x 范围 [-1, 1] m
             np.random.uniform(-1.0, 1.0),  # y 范围 [-1, 1] m
-            np.random.uniform(0, 4)    # z 范围 [0.5, 1.5] m，避免过高或过低
+            np.random.uniform(2.9, 3.2)    # z 范围 [0.5, 1.5] m，避免过高或过低
         ])
 
         init_orientation = np.random.uniform(-0.4, 0.4, size=3)  # 近似水平的随机扰动
@@ -261,9 +261,9 @@ class QuadrotorEnv(gym.Env):
         state.pose.position.x = 0
         state.pose.position.y = 0
         state.pose.position.z = 0.2
-        state.pose.orientation.x = 0
-        state.pose.orientation.y = 0
-        state.pose.orientation.z = 0
+        state.pose.orientation.x = init_orientation[0]
+        state.pose.orientation.y = init_orientation[1]
+        state.pose.orientation.z = init_orientation[2]
         state.pose.orientation.w = 1.0  # 保持单位四元数
 
         state.twist.linear.x=init_velocity[0]
@@ -338,7 +338,7 @@ class QuadrotorEnv(gym.Env):
 
         # 1. 位置跟踪奖励（指数衰减）
         pos_error = np.linalg.norm(curr_pos - target_pos)
-        r_position = np.exp(-0.5 * pos_error)
+        r_position = np.exp(-4 * pos_error)
 
         # if(r_position<0.2):
         #     r_position+=10
@@ -352,7 +352,7 @@ class QuadrotorEnv(gym.Env):
         current_rot = obs[3:12].reshape(3,3)
         target_rot = self.desired_state[3:12].reshape(3,3)
         rot_diff = np.arccos((np.trace(current_rot @ target_rot.T) - 1)/2)
-        r_attitude = 0.3 * (1 - np.abs(rot_diff/np.pi))
+        r_attitude = 0.1 * (1 - np.abs(rot_diff/np.pi))
 
         # 4. 动作平滑惩罚
         if self.prev_action_ is not None:

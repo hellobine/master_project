@@ -2,7 +2,7 @@ import numpy as np
 import torch
 # import gym
 import gymnasium as gym
-from stable_baselines3 import PPO
+from stable_baselines3 import PPO, TD3
 from stable_baselines3.common.callbacks import BaseCallback
 from stable_baselines3.common.vec_env import DummyVecEnv, VecEnv
 from torch.utils.tensorboard import SummaryWriter
