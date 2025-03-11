@@ -60,7 +60,11 @@
     </node>
     
   </group>
+<<<<<<< HEAD
   
+=======
+
+>>>>>>> parent of 7e9a47f... hovering can work
  <group ns="hummingbird1">
     <include file="$(find rotors_gazebo)/launch/spawn_mav_RL.launch">
       <arg name="namespace" value="hummingbird1" />
@@ -258,7 +262,8 @@
     </node>
     
   </group> 
-  <!--
+
+   <!-- 
 <group ns="hummingbird10">
     <include file="$(find rotors_gazebo)/launch/spawn_mav_RL.launch">
       <arg name="namespace" value="hummingbird10" />
