@@ -294,11 +294,8 @@ class QuadrotorEnv(gym.Env):
         
         # 1. 位置跟踪奖励（指数衰减）
         pos_error = np.linalg.norm(curr_pos - target_pos)
-<<<<<<< HEAD
-        r_position = np.exp(-4 * pos_error)
-=======
+
         r_position = np.exp(-0.5 * pos_error)
->>>>>>> parent of 7e9a47f... hovering can work
 
         # print(r_position)
 
