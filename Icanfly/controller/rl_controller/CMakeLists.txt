@@ -26,6 +26,7 @@ catkin_install_python(PROGRAMS
   scripts/stable_baseline3_env.py
   scripts/stable_baseline3_train.py
   scripts/stable_baseline3_policy.py
+  scripts/stable_baseline3_train_SAC.py
 
   DESTINATION ${CATKIN_PACKAGE_BIN_DESTINATION}
 )
