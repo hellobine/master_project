@@ -47,29 +47,49 @@ class SB3PPOTrainer:
         self.model_path = model_path
         
         # 使用内置的 MlpPolicy，不再引用自定义策略
+        # self.model = PPO(
+        #     policy="MlpPolicy",
+        #     env=self.env,
+        #     # policy_kwargs={"net_arch": [dict(pi=[256, 256 , 128], vf=[256,256,128])]},
+        #     policy_kwargs={
+        #         "net_arch": dict(pi=[128, 128], vf=[128, 128]),
+        #         "optimizer_kwargs": {"weight_decay": 1e-4 }
+        #     },
+        #     # seed=seed,
+        #     learning_rate=learning_rate,
+        #     n_steps=n_steps,
+        #     batch_size=batch_size,
+        #     gamma=gamma,
+        #     gae_lambda=gae_lambda,
+        #     clip_range=clip_range,
+        #     ent_coef=ent_coef,
+        #     verbose=1,
+        #     # seed=seed,
+        #     # device="cpu",  # 设置使用 GPU
+        #     tensorboard_log="./rl_trajectory_run/sb3_tensorboard/"
+        # )
+        
         self.model = PPO(
             policy="MlpPolicy",
             env=self.env,
             # policy_kwargs={"net_arch": [dict(pi=[256, 256 , 128], vf=[256,256,128])]},
+            # policy_kwargs={"net_arch": dict(pi=[128, 128], vf=[128, 128])},
             policy_kwargs={
                 "net_arch": dict(pi=[128, 128], vf=[128, 128]),
                 "optimizer_kwargs": {"weight_decay": 1e-4 }
             },
-            # seed=seed,
             learning_rate=learning_rate,
             n_steps=n_steps,
             batch_size=batch_size,
             gamma=gamma,
+            clip_range=0.15,
             gae_lambda=gae_lambda,
-            clip_range=clip_range,
             ent_coef=ent_coef,
             verbose=1,
             # seed=seed,
             # device="cpu",  # 设置使用 GPU
             tensorboard_log="./rl_trajectory_run/sb3_tensorboard/"
         )
-        
-
 
         
         plt.ion()

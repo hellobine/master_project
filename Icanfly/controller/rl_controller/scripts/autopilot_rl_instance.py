@@ -16,8 +16,8 @@ def get_latest_checkpoint(checkpoint_dir):
         return None
     checkpoint_files = []
     for f in os.listdir(checkpoint_dir):
-        if f.startswith("DDPG_") and f.endswith(".zip"):
-            match = re.search(r"DDPG_(\d+)\.zip", f)
+        if f.startswith("ppo_quad_") and f.endswith(".zip"):
+            match = re.search(r"ppo_quad_(\d+)\.zip", f)
             if match:
                 step = int(match.group(1))
                 checkpoint_files.append((step, f))
@@ -37,22 +37,33 @@ if __name__ == "__main__":
     rospy.init_node('quadrotor_rl_node', anonymous=True)
     
     train_flag = True
-    num_envs = 10  # 根据需求调整并行环境数量
+    num_envs = 1  # 根据需求调整并行环境数量
     env_fns = [make_env(i) for i in range(num_envs)]
     vec_env = SubprocVecEnv(env_fns)
     
-    trainer = SB3Trainer(
-        env=vec_env,
-        algorithm='DDPG', 
-        total_timesteps=1_000_000_00,
-        # batch_size=512*3,
-        # n_steps=512,
-        # gamma=0.95,
-        # ent_coef=0.1,
-        # learning_rate=2e-4,
-        # model_path="./rl_trajectory_run/sb3_quadrotor_hover"
-    )
+    # trainer = SB3Trainer(
+    #     env=vec_env,
+    #     algorithm='DDPG', 
+    #     total_timesteps=1_000_000_00,
+    #     # batch_size=512*3,
+    #     # n_steps=512,
+    #     # gamma=0.95,
+    #     # ent_coef=0.1,
+    #     # learning_rate=2e-4,
+    #     # model_path="./rl_trajectory_run/sb3_quadrotor_hover"
+    # )
     
+    trainer = SB3PPOTrainer(
+        env=vec_env,
+        total_timesteps=1_000_000_00,
+        batch_size=256,
+        n_steps=256,
+        gamma=0.95,
+        ent_coef=0.09,
+        learning_rate=1e-4,
+        model_path="./rl_trajectory_run/sb3_quadrotor_hover"
+    )
+
     checkpoint_path = get_latest_checkpoint("./rl_trajectory_run/sb3_checkpoints/")
     if checkpoint_path is not None:
         print(f"Found latest checkpoint: {checkpoint_path}")

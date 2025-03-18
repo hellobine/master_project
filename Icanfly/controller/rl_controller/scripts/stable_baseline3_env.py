@@ -35,7 +35,7 @@ class QuadrotorEnv(gym.Env):
 
         self.observation_space = spaces.Box(
             low=np.concatenate((
-                np.full(3, -5),          # 当前位置
+                np.full(3, -10),          # 当前位置
                 np.full(9, -1),          # 旋转矩阵
                 np.full(3, -5),          # 当前线速度
                 np.full(3, -5),          # 目标位置
@@ -43,7 +43,7 @@ class QuadrotorEnv(gym.Env):
                 np.full(4, -1)           # 上一步动作
             )),
             high=np.concatenate((
-                np.full(3, 5),
+                np.full(3, 10),
                 np.full(9, 1),
                 np.full(3, 5),
                 np.full(3, 5),
@@ -73,7 +73,7 @@ class QuadrotorEnv(gym.Env):
             dtype=np.float32
         )
         # 安全和步数设置
-        self.max_position_error = 5.0  # 米
+        self.max_position_error = 4.0  # 米
         self.max_velocity_error = 5.0
         self.max_episode_steps = 256
         self.step_count = 0
@@ -225,14 +225,14 @@ class QuadrotorEnv(gym.Env):
 
     def _reset_drone_pose(self):
         init_position = np.array([
-            np.random.uniform(-0.2, 0.2),  # x 范围 [-1, 1] m
-            np.random.uniform(-0.2, 0.2),  # y 范围 [-1, 1] m
-            np.random.uniform(2.9, 3.2)    # z 范围 [0.5, 1.5] m，避免过高或过低
+            np.random.uniform(-1, 1),  # x 范围 [-1, 1] m
+            np.random.uniform(-1, 1),  # y 范围 [-1, 1] m
+            np.random.uniform(0.11, 3.2)    # z 范围 [0.5, 1.5] m，避免过高或过低
         ])
 
-        init_orientation = np.random.uniform(-0.4, 0.4, size=3)  # 近似水平的随机扰动
-        init_velocity = np.random.uniform(-1, 1, size=3)  # 低速随机初始化 #init_velocity = np.random.uniform(-3, 3, size=3)  # 低速随机初始化
-        init_angular_velocity = np.random.uniform(-0.1, 0.1, size=3)  # 低速角速度初始化
+        init_orientation = np.random.uniform(-1, 1, size=3)  # 近似水平的随机扰动
+        init_velocity = np.random.uniform(-2, 2, size=3)  # 低速随机初始化 #init_velocity = np.random.uniform(-3, 3, size=3)  # 低速随机初始化
+        init_angular_velocity = np.random.uniform(-1, 1, size=3)  # 低速角速度初始化
 
         state = ModelState()
         state.model_name = self.namespace  # 确保命名空间匹配 Gazebo 的无人机模型
@@ -291,7 +291,7 @@ class QuadrotorEnv(gym.Env):
         yaw = np.arctan2(t3, t4)
         return roll, pitch, yaw
 
-    def _compute_reward(self, obs, curr_action):
+    def _compute_reward_error(self, obs, curr_action):
  
         curr_pos = obs[0:3]
         target_pos = self.desired_state[0:3]
@@ -387,7 +387,56 @@ class QuadrotorEnv(gym.Env):
         self.prev_action_ = curr_action.copy()
         self.prev_pos_ = curr_pos.copy() 
         return total_reward
+
+    def _compute_reward(self, obs, curr_action):
+        # 状态分解
+        curr_pos = obs[0:3]
+        target_pos = self.desired_state[0:3]
+        curr_vel = obs[12:15]
+        target_vel = self.desired_state[12:15]
         
+        # 1. 位置跟踪奖励（指数衰减）
+        pos_error = np.linalg.norm(curr_pos - target_pos)
+
+        r_position = np.exp(-2 * pos_error)
+
+        # print(r_position)
+
+        # 2. 速度跟踪奖励
+        vel_error = np.linalg.norm(curr_vel - target_vel)
+        r_velocity = np.exp(-2 * vel_error)
+
+        # 3. 姿态稳定奖励（旋转矩阵与目标差异）
+        current_rot = obs[3:12].reshape(3,3)
+        target_rot = self.desired_state[3:12].reshape(3,3)
+        rot_diff = np.arccos((np.trace(current_rot @ target_rot.T) - 1)/2)
+        r_attitude = 0.1 * (1 - np.abs(rot_diff/np.pi))
+
+        # 4. 动作平滑惩罚
+        if self.prev_action_ is not None:
+            action_diff = np.linalg.norm(curr_action - self.prev_action_)
+            r_smooth = np.exp(-1 * action_diff)
+        else:
+            r_smooth = 0.0
+
+        # 5. 能量效率惩罚
+        thrust = ((curr_action[0] + 1)/2) * (self.max_thrust - self.min_thrust) + self.min_thrust
+        r_energy = -0.05 * (thrust/(self.mass*self.gravity))**2
+
+        # 合成总奖励
+        total_reward = (
+            r_position 
+            # r_velocity +
+            # r_attitude +
+            # r_smooth
+        )
+        # print("pos_error: ",pos_error, ", r_position: ",r_position, ", 0.4*r_velocity: ", 0.4*r_velocity, ", r_attitude: ", r_attitude, ", r_smooth: ", r_smooth)
+
+        # 更新历史数据
+        self.prev_action_ = curr_action.copy()
+        return total_reward
+
+
     def _check_done(self, obs):
         # 位置失稳检查
         pos_error = np.linalg.norm(obs[0:3] - self.desired_state[0:3])
