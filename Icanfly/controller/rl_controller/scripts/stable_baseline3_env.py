@@ -71,10 +71,13 @@ class QuadrotorEnv(gym.Env):
             dtype=np.float32
         )
 
-        self.max_position_error = 5.0  # 米
-        self.max_episode_steps = 128
+        self.max_position_error = 3.0  # 米
+        self.max_episode_steps = 256
         self.step_count = 0
         self.episode_reward = 0
+
+        self.prev_real_thrust = None
+        self.prev_real_bodyrates = None
 
         
         self.prev_action_ = None
@@ -85,8 +88,13 @@ class QuadrotorEnv(gym.Env):
         self.angular_y = 0
         self.angular_z = 0
 
-
+        self.stable_count = 0
+        self.stable_steps_needed = 5   # 连续满足条件多少步后判定成功
+        self.stable_pos_threshold = 0.2  # 位置误差小于该值
+        self.stable_vel_threshold = 0.3  # 速度误差小于该值
         self.reference_trajectory_ = None  # 使用列表模拟队列
+
+
         # self.pnh_ = rospy.get_namespace()  # 这里用 ROS 的命名空间代替参数句柄
   
         self.reference_state_ = None  # 例如一个包含 position 属性的对象，position 为 numpy 数组
@@ -205,6 +213,9 @@ class QuadrotorEnv(gym.Env):
 
         reward = self._compute_reward(obs, action)
         self.episode_reward += reward
+        # if self.stable_count >= self.stable_steps_needed:
+        #     reward+= self.stable_steps_needed * 1
+            # self.episode_reward += reward
 
         if self.step_count >= self.max_episode_steps or self._check_done(obs):
             # 如果达到最大步数，则标记为截断，否则标记为终止
@@ -214,12 +225,13 @@ class QuadrotorEnv(gym.Env):
             else:
                 terminated = True  # 任务失败，如超出范围
                 truncated = False
-
+ 
             # 在所有结束条件下，都返回 episode 信息
             info = {"reward": reward, "episode": {"r": self.episode_reward, "l": self.step_count}}
             # 重置计数器和累计奖励
             self.episode_reward = 0
             self.step_count = 0
+            self.stable_count = 0
 
         else:
             terminated = False
@@ -239,7 +251,7 @@ class QuadrotorEnv(gym.Env):
         self.episode_reward = 0
         self.prev_action_ = None
         self._reset_drone_pose()
-        rospy.sleep(0.001)  # 等待复位完成
+        rospy.sleep(0.01)  # 等待复位完成
         with self.state_lock:
             obs = self.current_state.copy()
         return obs, {}
@@ -340,9 +352,12 @@ class QuadrotorEnv(gym.Env):
         pos_error = np.linalg.norm(curr_pos - target_pos)
         r_position = np.exp(-0.5 * pos_error)
 
-        # if(r_position<0.2):
-        #     r_position+=10
+        if(r_position<0.8):
+            r_progress=0
 
+        if self.stable_count >= self.stable_steps_needed:
+            r_position+= self.stable_steps_needed * 1
+            r_progress=0
 
         # 2. 速度跟踪奖励
         vel_error = np.linalg.norm(curr_vel - target_vel)
@@ -354,9 +369,22 @@ class QuadrotorEnv(gym.Env):
         rot_diff = np.arccos((np.trace(current_rot @ target_rot.T) - 1)/2)
         r_attitude = 0.3 * (1 - np.abs(rot_diff/np.pi))
 
+
+        curr_real_thrust = ((curr_action[0] + 1) / 2) * (self.max_thrust - self.min_thrust) + self.min_thrust
+        curr_real_bodyrates = np.clip(curr_action[1:], -1, 1) * self.max_angular_rate
+
+
         # 4. 动作平滑惩罚
         if self.prev_action_ is not None:
+            real_diff_thrust = curr_real_thrust - self.prev_real_thrust
+            real_diff_bodyrates = curr_real_bodyrates - self.prev_real_bodyrates
+            real_action_diff = np.linalg.norm(
+            np.concatenate(([real_diff_thrust], real_diff_bodyrates))
+            )
+            r_smooth = -0.3 * (real_action_diff ** 2)
             action_diff = np.linalg.norm(curr_action - self.prev_action_)
+
+
             r_smooth = -0.1 * (action_diff ** 2)
         else:
             r_smooth = 0.0
@@ -365,7 +393,7 @@ class QuadrotorEnv(gym.Env):
         thrust = ((curr_action[0] + 1)/2) * (self.max_thrust - self.min_thrust) + self.min_thrust
         r_energy = -0.05 * (thrust/(self.mass*self.gravity))**2
 
-        print(r_progress, r_position, r_velocity, r_attitude, r_smooth)
+        # print(r_progress, r_position, r_velocity, r_attitude, r_smooth)
         # 合成总奖励
         total_reward = (
             r_progress +
@@ -373,12 +401,14 @@ class QuadrotorEnv(gym.Env):
             r_velocity +
             r_attitude +
             r_smooth
-            #   +
-            # r_energy
+              +
+            r_energy
         )
 
         # 更新历史数据
         self.prev_action_ = curr_action.copy()
+        self.prev_real_thrust = curr_real_thrust.copy()
+        self.prev_real_bodyrates = curr_real_bodyrates.copy()
 
         self.prev_position = curr_pos.copy()
         return total_reward
@@ -386,20 +416,75 @@ class QuadrotorEnv(gym.Env):
     def _check_done(self, obs):
         # 位置失稳检查
         pos_error = np.linalg.norm(obs[0:3] - self.desired_state[0:3])
-        if pos_error > self.max_position_error or obs[2] < 0:
+        if obs[0] > self.max_position_error or obs[0]<-self.max_position_error \
+            or obs[1] > self.max_position_error or obs[1]<-self.max_position_error \
+            or obs[2] > 4 or obs[2] < 0:
+            # print(obs)
+        # if pos_error > self.max_position_error or obs[2] < 0:
             return True
         
         # 姿态异常检查
             # 姿态检查：检测侧翻（roll 超过阈值）
+        # current_rot = obs[3:12].reshape(3,3)
+        # # 直接从旋转矩阵中计算 roll: roll = arctan2(R[2,1], R[2,2])
+        # roll = np.arctan2(current_rot[2,1], current_rot[2,2])
+        # if np.abs(roll) > 1.0:  # 阈值 1.0 弧度（约57°），可根据需求调整
+        #     print("np.abs(roll) > 1.0")
+        #     return True
+
         current_rot = obs[3:12].reshape(3,3)
-        # 直接从旋转矩阵中计算 roll: roll = arctan2(R[2,1], R[2,2])
         roll = np.arctan2(current_rot[2,1], current_rot[2,2])
-        if np.abs(roll) > 1.0:  # 阈值 1.0 弧度（约57°），可根据需求调整
-            return True
+        pitch = np.arcsin(-current_rot[2,0])  # 另一种常见写法
+        yaw = np.arctan2(current_rot[1,0], current_rot[0,0])
+
+        # 设置阈值 (根据需求可改大/改小)
+        roll_threshold = 5.0 * np.pi / 180.0   # 15度
+        pitch_threshold = 5.0 * np.pi / 180.0  # 15度
+        yaw_threshold = 5.0 * np.pi / 180.0    # 比如同样 15度
+        att_ok = (abs(roll) < roll_threshold and
+                abs(pitch) < pitch_threshold and
+                abs(yaw) < yaw_threshold)
         
-        # 速度失控检查
-        if np.linalg.norm(obs[12:15]) > 8.0:  # 最大允许速度
-            return True
+        # # 假设目标姿态的旋转矩阵（目标为单位矩阵，即无旋转）
+        # desired_rot = self.desired_state[3:12].reshape(3, 3)
+
+        # # 当前姿态旋转矩阵（从观测中获取）
+        # current_rot = obs[3:12].reshape(3, 3)
+
+        # # 计算相对旋转矩阵
+        # R_diff = np.dot(desired_rot.T, current_rot)
+
+        # # 计算角度差（注意数值可能超出 [-1,1]，因此需要 clip）
+        # cos_theta = (np.trace(R_diff) - 1) / 2.0
+        # cos_theta = np.clip(cos_theta, -1.0, 1.0)
+        # rot_diff_angle = np.arccos(cos_theta)
+
+        # # 设置阈值（例如：5度，转换为弧度）
+        # orientation_threshold = 5.0 * np.pi / 180.0
+        # print("rot_diff_angle: ", rot_diff_angle, " orientation_threshold: ", orientation_threshold)
+
+        # # 判断是否小于阈值
+        # att_ok = (rot_diff_angle < orientation_threshold)
+
+        vel_error = np.linalg.norm(obs[12:15] - self.desired_state[12:15])
+        print("roll: ", roll, ", pitch: ", pitch, ", self.roll_threshold: ", roll_threshold)
+        if att_ok and pos_error < self.stable_pos_threshold/2 and vel_error < self.stable_vel_threshold/3:
+            self.stable_count += 2
+        elif att_ok and pos_error < self.stable_pos_threshold and vel_error < self.stable_vel_threshold:
+            self.stable_count += 0.5
+        else:
+            self.stable_count = 0
+
+        # 一旦满足 stable_steps_needed，则说明已经稳定悬停，done = True
+        # if self.stable_count >= self.stable_steps_needed:
+        #     print("Quadrotor hovered successfully!")
+        #     return True
+
+        
+        # # 速度失控检查
+        # if np.linalg.norm(obs[12:15]) > 8.0:  # 最大允许速度
+        #     print("np.linalg.norm(obs[12:15]) > 8.0")
+        #     return True
         
         return False
     
