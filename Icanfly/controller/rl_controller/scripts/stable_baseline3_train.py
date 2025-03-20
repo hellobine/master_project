@@ -33,7 +33,7 @@ class GymnasiumWrapper(gym.Wrapper):
 
 class SB3PPOTrainer:
     def __init__(self, env, total_timesteps=1e9, batch_size=64, n_steps=128,
-                 gamma=0.99, gae_lambda=0.95, clip_range=0.1, ent_coef=0.1,
+                 gamma=0.99, gae_lambda=0.95, clip_range=0.15, ent_coef=0.12,
                  learning_rate=1e-4, model_path="./run/sb3_ppo_quadrotor"):
         
         
@@ -52,6 +52,7 @@ class SB3PPOTrainer:
             env=self.env,
             # policy_kwargs={"net_arch": [dict(pi=[256, 256 , 128], vf=[256,256,128])]},
             policy_kwargs={"net_arch": dict(pi=[128, 128], vf=[128, 128])
+                        #    "optimizer_kwargs": {"weight_decay": 1e-6 }
                            },
 
             learning_rate=learning_rate,
@@ -80,7 +81,7 @@ class SB3PPOTrainer:
         self.writer = SummaryWriter(log_dir="./rl_trajectory_run/sb3_tensorboard/")
         
         self.callback = SB3CustomCallback(
-            save_freq=10000,
+            save_freq=5000,
             save_path="./rl_trajectory_run/sb3_checkpoints/",
             model=self.model,
             writer=self.writer,
@@ -131,7 +132,17 @@ class SB3CustomCallback(BaseCallback):
                 if "reward" in info:
                     self.writer.add_scalar("Reward/Step", info["reward"], self.num_timesteps)
                 if "episode" in info:
-                    self.episode_rewards.append(info["episode"]["r"])
+                    average_10_reward=0
+                    if len(self.episode_rewards) >= 10:
+                        recent_10 = self.episode_rewards[-9:]
+                        recent_10.append(info["episode"]["r"])
+                        average_10_reward = sum(recent_10) / 10.0
+                        self.episode_rewards.append(average_10_reward)
+                    else:
+                        # average_10_reward = sum(self.episode_rewards) / len(self.episode_rewards)
+                        self.episode_rewards.append(info["episode"]["r"])
+                    
+                    # self.episode_rewards.append(info["episode"]["r"])
                     self.steps.append(self.num_timesteps)
                     print(f"Episode ended at step {self.num_timesteps}, reward: {info['episode']['r']}")
                     
@@ -143,6 +154,7 @@ class SB3CustomCallback(BaseCallback):
 
     def _update_plot(self):
         self.ax.clear()
+
         self.ax.plot(self.steps, self.episode_rewards, label="Episode Reward")
         self.ax.set_xlabel("Global Step")
         self.ax.set_ylabel("Reward")
