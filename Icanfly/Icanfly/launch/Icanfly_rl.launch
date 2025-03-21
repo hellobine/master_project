@@ -60,7 +60,7 @@
     </node>
     
   </group>
- 
+
  <group ns="hummingbird1">
     <include file="$(find rotors_gazebo)/launch/spawn_mav_RL.launch">
       <arg name="namespace" value="hummingbird1" />
@@ -280,7 +280,7 @@
     </node>
     
   </group>
-
+   <!-- 
   <group ns="hummingbird11">
     <include file="$(find rotors_gazebo)/launch/spawn_mav_RL.launch">
       <arg name="namespace" value="hummingbird11" />
@@ -302,7 +302,7 @@
     </node>
     
   </group>
-  <!-- 
+
   <group ns="hummingbird12">
     <include file="$(find rotors_gazebo)/launch/spawn_mav_RL.launch">
       <arg name="namespace" value="hummingbird12" />

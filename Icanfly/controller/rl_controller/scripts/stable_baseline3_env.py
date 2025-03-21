@@ -274,8 +274,8 @@ class QuadrotorEnv(gym.Env):
         ])
 
         init_orientation = np.random.uniform(-3, 3, size=3)  # 近似水平的随机扰动
-        init_velocity = np.random.uniform(-1, 1, size=3)  # 低速随机初始化 #init_velocity = np.random.uniform(-3, 3, size=3)  # 低速随机初始化
-        init_angular_velocity = np.random.uniform(-0.1, 0.1, size=3)  # 低速角速度初始化
+        init_velocity = np.random.uniform(-0.1, 0.1, size=3)  # 低速随机初始化 #init_velocity = np.random.uniform(-3, 3, size=3)  # 低速随机初始化
+        init_angular_velocity = np.random.uniform(-0.05, 0.05, size=3)  # 低速角速度初始化
 
         state = ModelState()
         state.model_name = self.namespace  # 确保命名空间匹配 Gazebo 的无人机模型
@@ -284,8 +284,8 @@ class QuadrotorEnv(gym.Env):
         state.pose.position.z = 0.11
         state.pose.orientation.x = 0
         state.pose.orientation.y = 0
-        state.pose.orientation.z = init_orientation[0]
-        state.pose.orientation.w = init_orientation[1]  # 保持单位四元数
+        state.pose.orientation.z = 0
+        state.pose.orientation.w = 1  # 保持单位四元数
 
         state.twist.linear.x=init_velocity[0]
         state.twist.linear.y=init_velocity[1]
@@ -389,17 +389,17 @@ class QuadrotorEnv(gym.Env):
         r_energy = -0.1 * (thrust/(self.mass*self.gravity))**2
 
         if pos_error<0.5:
-            r_progress_weight = 0.2 
-            r_position_weight= 0.5
-            r_velocity_weight=2
-            r_attitude_weight=2
-            r_smooth_weight=2
+            r_progress_weight = 0.2
+            r_position_weight= 2
+            r_velocity_weight=1
+            r_attitude_weight=1
+            r_smooth_weight=0.3
         else:
-            r_progress_weight = 2 
+            r_progress_weight = 0.6 
             r_position_weight = 2
-            r_velocity_weight = 0.2
+            r_velocity_weight = 0.0
             r_attitude_weight = 0.2
-            r_smooth_weight=0.2
+            r_smooth_weight=0.1
 
         # print("r_progress: ", r_progress_weight*r_progress, r_position_weight*r_position, r_velocity_weight*r_velocity, r_attitude_weight*r_attitude, r_smooth_weight*r_smooth)
         
@@ -413,20 +413,22 @@ class QuadrotorEnv(gym.Env):
             # r_energy
         )
 
-        pos_threshold = 0.2    # 位置误差小于0.3米
-        vel_threshold = 0.2    # 速度误差小于0.5m/s
+        pos_threshold = 0.3    # 位置误差小于0.3米
+        vel_threshold = 0.3    # 速度误差小于0.5m/s
         rot_threshold = 0.2    # 姿态误差(弧度)小于0.3 (约17.2度)
 
         # 如果都满足，就额外 +2
         if pos_error < pos_threshold and vel_error < vel_threshold and abs(rot_diff) < rot_threshold:
             print("hovering !!!!!!!!!!!!!!!!!!!!!!!!")
-            total_reward += 2.0
+            total_reward += 6.0
         elif pos_error < pos_threshold*0.8 and vel_error < vel_threshold*0.8 and abs(rot_diff) < rot_threshold*0.8:
             print("greater hovering !!!!!!!!!!!!!!!!!!!!!!!!")
-            total_reward += 4.0
+            total_reward += 12.0
 
         # print("pos_error: ",pos_error , ", vel_error: ",vel_error, ",  abs(rot_diff): ", abs(rot_diff))
-
+        
+        print("total_reward: ", total_reward, ", r_progress: ", r_progress_weight*r_progress, r_position_weight*r_position, r_velocity_weight*r_velocity, r_attitude_weight*r_attitude, r_smooth_weight*r_smooth)
+        
         # 更新历史数据
         self.prev_action_ = curr_action.copy()
         self.prev_real_thrust = curr_real_thrust.copy()
