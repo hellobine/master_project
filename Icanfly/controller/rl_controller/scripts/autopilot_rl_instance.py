@@ -38,12 +38,13 @@ if __name__ == "__main__":
     train_flag = True
     num_envs = 10  # 根据需求调整并行环境数量
     env_fns = [make_env(i) for i in range(num_envs)]
+    
     vec_env = SubprocVecEnv(env_fns)
     
     trainer = SB3PPOTrainer(
         env=vec_env,
-        total_timesteps=1_000_000_00,
-        batch_size= 256,#256
+        total_timesteps=1_000_000_0,
+        batch_size= 256*10,#256
         n_steps=256,#256
         learning_rate=1e-4,
         model_path="./rl_trajectory_run/sb3_quadrotor_hover"

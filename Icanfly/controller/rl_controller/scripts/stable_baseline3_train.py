@@ -4,7 +4,7 @@ import torch
 import gymnasium as gym
 from stable_baselines3 import PPO
 from stable_baselines3.common.callbacks import BaseCallback
-from stable_baselines3.common.vec_env import DummyVecEnv, VecEnv
+from stable_baselines3.common.vec_env import DummyVecEnv, VecEnv, SubprocVecEnv
 from torch.utils.tensorboard import SummaryWriter
 import matplotlib.pyplot as plt
 
@@ -33,8 +33,8 @@ class GymnasiumWrapper(gym.Wrapper):
 
 class SB3PPOTrainer:
     def __init__(self, env, total_timesteps=1e9, batch_size=64, n_steps=128,
-                 gamma=0.98, gae_lambda=0.95, clip_range=0.15, ent_coef=0.12,
-                 learning_rate=1e-4, model_path="./run/sb3_ppo_quadrotor"):
+                 gamma=0.99, gae_lambda=0.95, clip_range=0.14, ent_coef=0.16,
+                 learning_rate=3e-4, model_path="./run/sb3_ppo_quadrotor"):
         
         
         # 如果传入的环境未向量化，则先用 GymnasiumWrapper 包装，再用 DummyVecEnv 包装
@@ -143,7 +143,7 @@ class SB3CustomCallback(BaseCallback):
                         self.episode_rewards.append(average_reward)
                     else:
                         self.episode_rewards.append(info["episode"]["r"])
-                        
+
                     self.steps.append(self.num_timesteps)
                     print(f"Episode ended at step {self.num_timesteps}, reward: {info['episode']['r']}")
                     
