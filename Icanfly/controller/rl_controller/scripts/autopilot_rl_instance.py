@@ -36,16 +36,15 @@ if __name__ == "__main__":
     rospy.init_node('quadrotor_rl_node', anonymous=True)
     
     train_flag = True
-    num_envs = 12  # 根据需求调整并行环境数量
+    num_envs = 10  # 根据需求调整并行环境数量
     env_fns = [make_env(i) for i in range(num_envs)]
     vec_env = SubprocVecEnv(env_fns)
     
     trainer = SB3PPOTrainer(
         env=vec_env,
-        total_timesteps=1_000_000_00,
-        batch_size= 256,#256
-        n_steps=256,#256
-        learning_rate=1e-4,
+        total_timesteps=1_000_000_000,
+        batch_size= 64*num_envs,#256
+        n_steps=64, #256
         model_path="./rl_trajectory_run/sb3_quadrotor_hover"
     )
     
@@ -64,14 +63,16 @@ if __name__ == "__main__":
         trainer.train()
     else:
         # 如果需要运行控制模式，则使用其中一个实例（例如 drone_0）
-        env = QuadrotorEnv(namespace="hummingbird1")
+        env = QuadrotorEnv(namespace="hummingbird0")
         obs, _ = env.reset()
         rate = rospy.Rate(50)
         rospy.loginfo("Entering test control loop...")
+        obs,_ = env.reset()
         while not rospy.is_shutdown():
+            
             action, _ = trainer.model.predict(obs, deterministic=True)
             obs, reward, terminated, truncated, info = env.step(action)
-            # if truncated:
-            #     rospy.loginfo("Episode finished, resetting environment.")
-            #     obs,_ = env.reset()
+            if truncated:
+                rospy.loginfo("Episode finished, resetting environment.")
+                obs,_ = env.reset()
             rate.sleep()

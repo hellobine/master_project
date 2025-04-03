@@ -60,7 +60,7 @@
     </node>
     
   </group>
- 
+
  <group ns="hummingbird1">
     <include file="$(find rotors_gazebo)/launch/spawn_mav_RL.launch">
       <arg name="namespace" value="hummingbird1" />
@@ -258,8 +258,8 @@
     </node>
     
   </group> 
-
-<group ns="hummingbird10">
+ <!--
+ <group ns="hummingbird10">
     <include file="$(find rotors_gazebo)/launch/spawn_mav_RL.launch">
       <arg name="namespace" value="hummingbird10" />
       <arg name="model" value="$(arg model)" />
@@ -302,7 +302,7 @@
     </node>
     
   </group>
-  <!-- 
+
   <group ns="hummingbird12">
     <include file="$(find rotors_gazebo)/launch/spawn_mav_RL.launch">
       <arg name="namespace" value="hummingbird12" />
@@ -481,8 +481,9 @@
       <remap from="autopilot/state_estimate" to="ground_truth/odometry" />
     </node>
     
-  </group> -->
+  </group>    -->
 
   <node name="rviz" pkg="rviz" type="rviz" args="-d $(find rotors_gazebo)/resource/rviz/rviz.rviz" output="screen" />
   <node name="fly_10_turn_experience_node" pkg="icanfly" type="fly_10_turn_experience_node"  output="screen" />
+
 </launch>

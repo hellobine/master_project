@@ -9,11 +9,6 @@ from torch.utils.tensorboard import SummaryWriter
 import matplotlib.pyplot as plt
 
 
-# seed = 42
-# np.random.seed(seed)
-# torch.manual_seed(seed)
-
-
 # 定义一个包装器，将 gymnasium 的新 API 转换为 gym 的 API
 class GymnasiumWrapper(gym.Wrapper):
     def __init__(self, env):
@@ -33,9 +28,9 @@ class GymnasiumWrapper(gym.Wrapper):
 
 class SB3PPOTrainer:
     def __init__(self, env, total_timesteps=1e9, batch_size=64, n_steps=128,
-                 gamma=0.99, gae_lambda=0.95, clip_range=0.15, ent_coef=0.12,
+                 gamma=0.99, gae_lambda=0.95, clip_range=0.2, ent_coef=0.08,
                  learning_rate=1e-4, model_path="./run/sb3_ppo_quadrotor"):
-        
+        # clip_range can decline zaosheng
         
         # 如果传入的环境未向量化，则先用 GymnasiumWrapper 包装，再用 DummyVecEnv 包装
         if not isinstance(env, VecEnv):
@@ -52,7 +47,8 @@ class SB3PPOTrainer:
             env=self.env,
             # policy_kwargs={"net_arch": [dict(pi=[256, 256 , 128], vf=[256,256,128])]},
             policy_kwargs={"net_arch": dict(pi=[128, 128], vf=[128, 128])
-                        #    "optimizer_kwargs": {"weight_decay": 1e-6 }
+                        #    ,
+                        #    "optimizer_kwargs": {"weight_decay": 1e-5 }
                            },
 
             learning_rate=learning_rate,
