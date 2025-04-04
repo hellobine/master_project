@@ -483,6 +483,8 @@ from rotors_comm.msg import WindSpeed
 import threading
 from std_msgs.msg import Bool
 import random
+import re
+import math
 
 class QuadrotorEnv(gym.Env):
     def __init__(self, namespace="drone"):
@@ -491,6 +493,22 @@ class QuadrotorEnv(gym.Env):
         self.state_lock = rwlock.RWLockFair()
     
         self.namespace = namespace  
+
+
+        hover_idx = 0
+        m = re.search(r'\d+', self.namespace)
+        if m:
+            hover_idx = int(m.group())
+        radius = 2
+        angle = 2 * math.pi * hover_idx / 10  # 均匀分布的角度
+        x = radius * math.cos(angle)
+        y = radius * math.sin(angle)
+        z = 2  # 固定悬停高度
+        
+        self.target_hover = np.array([x, y, z], dtype=np.float32)
+        
+        
+
 
         self.mass = 0.73  # kg
         self.gravity = 9.8066
@@ -569,12 +587,19 @@ class QuadrotorEnv(gym.Env):
         self.rate = rospy.Rate(self.control_hz)
         self.current_state = np.zeros(self.state_dim, dtype=np.float32)
         # target_pos_=[random.randint[-1,1], random.randint[-1,1], random.randint[1,4]]
-        self.desired_state = np.array(
-            [1, 1, 3] + [1, 0, 0, 0] + [0, 0, 0] + [0, 0, 0],
-            dtype=np.float32
-        )
+        self.desired_state = np.concatenate((
+            self.target_hover,
+            np.array([1, 0, 0, 0], dtype=np.float32),
+            np.array([0, 0, 0], dtype=np.float32),
+            np.array([0, 0, 0], dtype=np.float32)
+        ))
+        
+        # self.desired_state = np.array(
+        #     self.target_hover + [1, 0, 0, 0] + [0, 0, 0] + [0, 0, 0],
+        #     dtype=np.float32
+        # )
    
-        self.max_episode_steps = 64
+        self.max_episode_steps = 128
         self.step_count = 0
         self.episode_reward = 0
 
@@ -585,12 +610,14 @@ class QuadrotorEnv(gym.Env):
         self.prev_rel_pos = None  # 上一步的相对位置
 
         # 奖励缩放系数与偏航参数（各项均已乘上时间步长 dt，可按实际需求调整）
-        self.s_target = 2
-        self.s_smooth = 0.0001
+        self.s_target = 0.5
+        self.s_pos = 1
+        self.s_smooth = -0.1
         self.s_yaw = 0.01
-        self.s_angular = -0.0002
-        self.s_crash = -10
-        self.yaw_lambda = 0.3
+        self.s_angular =  -0.01
+        self.s_crash = -3
+        self.yaw_lambda =  0.3
+        self.s_vel = 0.05
 
 
         self.prev_pos_error = None
@@ -633,7 +660,7 @@ class QuadrotorEnv(gym.Env):
             self.arm_pub.publish(msg)
             rospy.loginfo("Published arm message: true")
 
-        self._reset_drone_pose()
+        self._reset_drone_pose(self.target_hover)
 
         # print("reset@@@@@@@@@@@@@")
     
@@ -705,6 +732,8 @@ class QuadrotorEnv(gym.Env):
             current_state = self.current_state.copy()
 
         self.observation_space_norm, reward = self._compute_reward(current_state, action)
+        # print("self.desired_state[0:3]: ", self.desired_state[0:3], "current_state: ", current_state)
+
     
         check_done = self._check_done(current_state)
 
@@ -732,21 +761,73 @@ class QuadrotorEnv(gym.Env):
 
         return self.observation_space_norm, reward, terminated, truncated, info
 
+    # def reset(self, **kwargs):
+    #     self.step_count = 0
+    #     self.episode_reward = 0
+    #     self.prev_action_ = [0,0,0,0]
+ 
+
+    #     self._reset_drone_pose()
+        
+    #     self.prev_position = self.current_state[0:3]
+        
+    #     curr_rel_pos = self.current_state[0:3] - self.desired_state[0:3]
+    #     base_quat = self.current_state[3:7]
+    #     base_lin_vel = self.current_state[7:10]
+    #     base_ang_vel = self.current_state[10:13]
+
+    #     obs = np.concatenate((
+    #         curr_rel_pos,
+    #         base_quat,
+    #         base_lin_vel,
+    #         base_ang_vel,
+    #         np.array(self.prev_action_)
+    #     ))
+
+    #     norm_obs = self._normalize_obs(obs)
+    #     return norm_obs, {}
+    
+
     def reset(self, **kwargs):
         self.step_count = 0
         self.episode_reward = 0
-        self.prev_action_ = [0,0,0,0]
- 
+        self.prev_action_ = [0, 0, 0, 0]
 
-        self._reset_drone_pose()
+        # 重新设定 desired_state 的位置（例如：x,y 在[-1,1]随机，z 固定为3）
+        # new_desired_position = np.array([np.random.uniform(-2, 2),
+        #                                 np.random.uniform(-2, 2),
+        #                                 np.random.uniform(1, 3)], dtype=np.float32)
+        
+        
+        new_desired_position = np.array([0,
+                                        0,
+                                        2], dtype=np.float32)
+
+        
+        # 更新 desired_state 的前三个坐标
+        self.desired_state[0:3] = new_desired_position
+
+        # 计算 reset 时的起始位置，设为 desired_state 正下方 1 米（根据实际需求调整）
+        reset_position = np.array([np.random.uniform(-2, 2),
+                                        np.random.uniform(-2, 2),
+                                        np.random.uniform(1, 3)], dtype=np.float32)
+        # reset_position[2] = np.random.uniform(1, 3)
+
+        # 重置无人机位置
+        self._reset_drone_pose(reset_position)
+
         
         self.prev_position = self.current_state[0:3]
+
+        # print("self.desired_state[0:3]: ", self.desired_state[0:3], "self.current_state[0:3]: ", self.current_state[0:3])
+
         
+
+        # 后续的 reset 操作，例如构造观测
         curr_rel_pos = self.current_state[0:3] - self.desired_state[0:3]
         base_quat = self.current_state[3:7]
         base_lin_vel = self.current_state[7:10]
         base_ang_vel = self.current_state[10:13]
-
         obs = np.concatenate((
             curr_rel_pos,
             base_quat,
@@ -754,43 +835,66 @@ class QuadrotorEnv(gym.Env):
             base_ang_vel,
             np.array(self.prev_action_)
         ))
-
         norm_obs = self._normalize_obs(obs)
         return norm_obs, {}
-    
 
-    def _reset_drone_pose(self):
-        init_position = np.array([
-            np.random.uniform(-1, 1),  # x 范围 [-1, 1] m
-            np.random.uniform(-1, 1),  # y 范围 [-1, 1] m
-            np.random.uniform(2, 4)    # z 范围 [0.5, 1.5] m，避免过高或过低
-        ])
-
+    def _reset_drone_pose(self, reset_position):
+        # reset_position 为一个 [x, y, z] 的数组，表示无人机的起始位置
         init_orientation = np.random.uniform(-3, 3, size=3)  
-        init_angular_velocity = np.random.uniform(-1, 1, size=3)  
-
         state = ModelState()
         state.model_name = self.namespace  # 确保命名空间匹配 Gazebo 的无人机模型
-        state.pose.position.x = init_position[0]
-        state.pose.position.y = init_position[1]
-        state.pose.position.z = 1
+
+        state.pose.position.x = reset_position[0]
+        state.pose.position.y = reset_position[1]
+        state.pose.position.z = reset_position[2]
+
+        # state.pose.position.x = 0
+        # state.pose.position.y = 0
+        # state.pose.position.z = 3
+
+        # 这里可以设置初始朝向，比如保持单位四元数，或根据 init_orientation 设置
         state.pose.orientation.x = 0
         state.pose.orientation.y = 0
         state.pose.orientation.z = 0
-        state.pose.orientation.w = init_orientation[2]  # 保持单位四元数
-
-        # state.twist.linear.x=init_velocity[0]
-        # state.twist.linear.y=init_velocity[1]
-        # state.twist.linear.z=init_velocity[2]
-
-        # state.twist.angular.x=init_angular_velocity[0]
-        # state.twist.angular.y=init_angular_velocity[1]
-        # state.twist.angular.z=init_angular_velocity[2]
+        state.pose.orientation.w = 1  # 保持单位四元数
 
         pub = rospy.Publisher('/gazebo/set_model_state', ModelState, queue_size=1)
         pub.publish(state)
+        rospy.sleep(0.05)
 
-        rospy.sleep(0.1)
+
+    # def _reset_drone_pose(self):
+    #     init_position = np.array([
+    #         np.random.uniform(-1, 1),  # x 范围 [-1, 1] m
+    #         np.random.uniform(-1, 1),  # y 范围 [-1, 1] m
+    #         np.random.uniform(2, 4)    # z 范围 [0.5, 1.5] m，避免过高或过低
+    #     ])
+
+    #     init_orientation = np.random.uniform(-3, 3, size=3)  
+    #     init_angular_velocity = np.random.uniform(-1, 1, size=3)  
+
+    #     state = ModelState()
+    #     state.model_name = self.namespace  # 确保命名空间匹配 Gazebo 的无人机模型
+    #     state.pose.position.x = self.target_hover[0]
+    #     state.pose.position.y = self.target_hover[1]
+    #     state.pose.position.z = 0.0
+    #     state.pose.orientation.x = 0
+    #     state.pose.orientation.y = 0
+    #     state.pose.orientation.z = 0
+    #     state.pose.orientation.w = init_orientation[2]  # 保持单位四元数
+
+    #     # state.twist.linear.x=init_velocity[0]
+    #     # state.twist.linear.y=init_velocity[1]
+    #     # state.twist.linear.z=init_velocity[2]
+
+    #     # state.twist.angular.x=init_angular_velocity[0]
+    #     # state.twist.angular.y=init_angular_velocity[1]
+    #     # state.twist.angular.z=init_angular_velocity[2]
+
+    #     pub = rospy.Publisher('/gazebo/set_model_state', ModelState, queue_size=1)
+    #     pub.publish(state)
+
+    #     rospy.sleep(0.05)
 
     def _publish_action(self, action):
         cmd = ControlCommand()
@@ -869,7 +973,7 @@ class QuadrotorEnv(gym.Env):
         curr_dist = np.linalg.norm(self.desired_state[0:3] - curr_pos)
         r_progress_dis = prev_dist - curr_dist
 
-        r_target = 2*np.tanh(0.5*r_progress_dis)
+        r_target = np.tanh(0.5*r_progress_dis)
 
         if r_target>0.6:
             print("curr_pos: ", curr_pos)
@@ -881,13 +985,20 @@ class QuadrotorEnv(gym.Env):
 
         curr_rel_pos = current_state[0:3] - self.desired_state[0:3] 
         curr_rel_dis = np.linalg.norm(current_state[0:3] - self.desired_state[0:3])
-        r_position = np.exp(-0.3 * curr_rel_dis)
+        # r_position = -curr_rel_dis/self.max_position_error # np.exp(-1.7 * curr_rel_dis)
+        r_position = np.exp(-1.0 * curr_rel_dis)
 
         # 2. 接近目标奖励
         # if self.prev_rel_pos is not None:
             # r_target = np.linalg.norm(self.prev_rel_pos)**2 - np.linalg.norm(curr_rel_pos)**2
         # else:
             # r_target = 0.0
+        
+        
+        curr_vel_error = current_state[7:10] - self.desired_state[7:10]
+        curr_vel_error_norm = np.linalg.norm(curr_vel_error)
+        r_velocity = np.exp(-0.3 * curr_vel_error_norm)
+
 
         # 3. 动作平滑奖励：当前动作与上一次动作的平方差之和
         r_smooth = np.sum((curr_action - np.array(self.prev_action_))**2)
@@ -909,27 +1020,43 @@ class QuadrotorEnv(gym.Env):
 
         # 6. 撞机奖励：若满足撞机条件，则为 1，否则为 0
         r_crash = 1.0 if self._check_done(current_state) else 0.0
-        # print("self._check_done(current_state): ", self._check_done(current_state))
-        # print("r_crash: ", r_crash)
+
+
+        thrust = ((curr_action[0] + 1)/2) * (self.max_thrust - self.min_thrust) + self.min_thrust
+        r_energy = (thrust/(self.mass*self.gravity))**2/16
+
 
         # 7. 总奖励：各项奖励按预设缩放系数加权求和
         # print(r_position)
         # print("self.s_target * r_target: ", self.s_target * r_target)
-        total_reward = (
-            1 * r_position +
-            self.s_target  * r_target +
-            self.s_smooth * r_smooth +
-            self.s_yaw * r_yaw +
-            self.s_angular * r_angular +
-            self.s_crash * r_crash
+        # if curr_rel_dis<0.5:
+        #     self.s_vel = 2
+        # else:
+        #     self.s_vel = 0
+        total_reward = self.dt*(
+            self.s_pos * r_position  + 1
+            # self.s_target  * r_target +
+            # self.s_smooth * r_smooth +
+            # self.s_vel * r_velocity+
+            # self.s_yaw * r_yaw +
+            # self.s_angular * r_angular +
+            # self.s_crash * r_crash 
+            # + r_energy
         )
-        print("1 * r_position: ", 1 * r_position, "self.s_target * r_target: ", self.s_target * r_target, "self.s_crash * r_crash: ", self.s_crash * r_crash)
+        # print(" self.s_pos * r_position: ", self.s_pos * r_position)
+        # print("total_reward: ",total_reward,
+        #       "r_energy: ", r_energy,
+        #     "self.s_pos * r_position: ", self.s_pos * r_position, 
+        #      "self.s_vel * r_velocity: ", self.s_vel * r_velocity, 
+        #       "self.s_target * r_target: ", self.s_target * r_target, 
+        #       "self.s_smooth * r_smooth", self.s_smooth * r_smooth,
+        #       "self.s_crash * r_crash: ", self.s_crash * r_crash)
         # print("[7] 各项加权值：")
-        # print(f"    r_target weighted: {self.s_target * r_target}")
+        # # print(f"    r_target weighted: {self.s_target * r_target}")
         # print(f"    r_smooth weighted: {self.s_smooth * r_smooth}")
         # print(f"    r_yaw weighted: {self.s_yaw * r_yaw}")
         # print(f"    r_angular weighted: {self.s_angular * r_angular}")
-        # print(f"    r_crash weighted: {self.s_crash * r_crash}")
+        # # print(f"    r_crash weighted: {self.s_crash * r_crash}")
         # print(f"[7] total_reward = {total_reward}")
 
 
@@ -947,15 +1074,16 @@ class QuadrotorEnv(gym.Env):
         ))
 
 
+        # print(obs)
         norm_obs = self._normalize_obs(obs)
 
-        # 更新历史记录
+  
+
         self.prev_action_ = curr_action.copy()
         self.prev_rel_pos = curr_rel_pos.copy()
         self.prev_position = curr_pos.copy()
 
         return norm_obs, total_reward
-
 
 
     def _check_done(self, curr_state):
@@ -977,7 +1105,7 @@ class QuadrotorEnv(gym.Env):
             return True
 
         if np.linalg.norm(curr_state[7:10]) > self.max_velocity_error: 
-            print("vel > ", self.max_velocity_error)
+            # print("vel > ", self.max_velocity_error)
             return True
         
         return False

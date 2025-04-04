@@ -21,7 +21,7 @@
 
 <robot name="hummingbird" xmlns:xacro="http://ros.org/wiki/xacro">
 
-  <xacro:property name="disable_collisions" value="true" />
+  <xacro:property name="disable_collisions" value="false" />
 
   <!-- Properties (Taken from Novel Dynamic Inversion Architecture Design
 for Quadrocopter Control by Jian Wang et al.) -->

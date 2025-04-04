@@ -43,8 +43,8 @@ if __name__ == "__main__":
     trainer = SB3PPOTrainer(
         env=vec_env,
         total_timesteps=1_000_000_000,
-        batch_size= 64*num_envs,#256
-        n_steps=64, #256
+        batch_size= 128*num_envs,#256
+        n_steps=128, #256
         model_path="./rl_trajectory_run/sb3_quadrotor_hover"
     )
     

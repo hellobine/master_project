@@ -38,7 +38,7 @@
     <arg name="verbose" value="$(arg verbose)"/>
   </include>
 
-  <!-- 第1架无人机 -->
+
   <group ns="hummingbird0">
     <include file="$(find rotors_gazebo)/launch/spawn_mav_RL.launch">
       <arg name="namespace" value="hummingbird0" />
@@ -258,7 +258,8 @@
     </node>
     
   </group> 
- <!--
+ <!-- 
+
  <group ns="hummingbird10">
     <include file="$(find rotors_gazebo)/launch/spawn_mav_RL.launch">
       <arg name="namespace" value="hummingbird10" />
@@ -481,7 +482,7 @@
       <remap from="autopilot/state_estimate" to="ground_truth/odometry" />
     </node>
     
-  </group>    -->
+  </group>  -->
 
   <node name="rviz" pkg="rviz" type="rviz" args="-d $(find rotors_gazebo)/resource/rviz/rviz.rviz" output="screen" />
   <node name="fly_10_turn_experience_node" pkg="icanfly" type="fly_10_turn_experience_node"  output="screen" />

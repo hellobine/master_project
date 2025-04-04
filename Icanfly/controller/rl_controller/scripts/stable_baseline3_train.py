@@ -47,8 +47,8 @@ class SB3PPOTrainer:
             env=self.env,
             # policy_kwargs={"net_arch": [dict(pi=[256, 256 , 128], vf=[256,256,128])]},
             policy_kwargs={"net_arch": dict(pi=[128, 128], vf=[128, 128])
-                        #    ,
-                        #    "optimizer_kwargs": {"weight_decay": 1e-5 }
+                           ,
+                           "optimizer_kwargs": {"weight_decay": 1e-5 }
                            },
 
             learning_rate=learning_rate,
@@ -77,7 +77,7 @@ class SB3PPOTrainer:
         self.writer = SummaryWriter(log_dir="./rl_trajectory_run/sb3_tensorboard/")
         
         self.callback = SB3CustomCallback(
-            save_freq=5000,
+            save_freq=10000,
             save_path="./rl_trajectory_run/sb3_checkpoints/",
             model=self.model,
             writer=self.writer,
@@ -135,12 +135,13 @@ class SB3CustomCallback(BaseCallback):
                         average_10_reward = sum(recent_10) / 10.0
                         self.episode_rewards.append(average_10_reward)
                     else:
+                        # continue
                         # average_10_reward = sum(self.episode_rewards) / len(self.episode_rewards)
                         self.episode_rewards.append(info["episode"]["r"])
                     
                     # self.episode_rewards.append(info["episode"]["r"])
                     self.steps.append(self.num_timesteps)
-                    print(f"Episode ended at step {self.num_timesteps}, reward: {info['episode']['r']}")
+                    # print(f"Episode ended at step {self.num_timesteps}, reward: {info['episode']['r']}")
                     
         if self.num_timesteps % self.save_freq == 0:
             save_path = f"{self.save_path}/ppo_quad_{self.num_timesteps}"
