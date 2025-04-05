@@ -516,6 +516,10 @@ class QuadrotorEnv(gym.Env):
         self.max_thrust =  4 * self.mass * self.gravity
         self.max_angular_rate = 5.0
 
+        # self.min_thrust = 1 * self.mass * self.gravity
+        # self.max_thrust =  5 * self.mass * self.gravity
+        # self.max_angular_rate = 3.0
+
         self.max_position_error = 5.0  # 米
         self.max_velocity_error = 8.0  # 米
 
@@ -610,9 +614,9 @@ class QuadrotorEnv(gym.Env):
         self.prev_rel_pos = None  # 上一步的相对位置
 
         # 奖励缩放系数与偏航参数（各项均已乘上时间步长 dt，可按实际需求调整）
-        self.s_target = 0.5
+        self.s_target = 0.1
         self.s_pos = 1
-        self.s_smooth = -0.1
+        self.s_smooth = -0.05
         self.s_yaw = 0.01
         self.s_angular =  -0.01
         self.s_crash = -3
@@ -627,6 +631,7 @@ class QuadrotorEnv(gym.Env):
         )
 
         self.prev_position = [0,0,0]
+        self.prev_orientation_q = [0,0,0,0]           # 用于记录上一步的4 yuanshu
    
 
         self.angular_x = 0
@@ -794,14 +799,14 @@ class QuadrotorEnv(gym.Env):
         self.prev_action_ = [0, 0, 0, 0]
 
         # 重新设定 desired_state 的位置（例如：x,y 在[-1,1]随机，z 固定为3）
-        # new_desired_position = np.array([np.random.uniform(-2, 2),
-        #                                 np.random.uniform(-2, 2),
-        #                                 np.random.uniform(1, 3)], dtype=np.float32)
+        new_desired_position = np.array([np.random.uniform(-2, 2),
+                                        np.random.uniform(-2, 2),
+                                        np.random.uniform(1, 3)], dtype=np.float32)
         
         
-        new_desired_position = np.array([0,
-                                        0,
-                                        2], dtype=np.float32)
+        # new_desired_position = np.array([0,
+        #                                 0,
+        #                                 2], dtype=np.float32)
 
         
         # 更新 desired_state 的前三个坐标
@@ -974,13 +979,14 @@ class QuadrotorEnv(gym.Env):
         r_progress_dis = prev_dist - curr_dist
 
         r_target = np.tanh(0.5*r_progress_dis)
+        print("r_target: ", r_target)
 
-        if r_target>0.6:
-            print("curr_pos: ", curr_pos)
-            print("self.prev_position: ", self.prev_position)
-            print("prev_dist: ", prev_dist)
-            print("curr_dist: ", curr_dist)
-            print("r_target: ", r_target)
+        # if r_target>0.6:
+        #     print("curr_pos: ", curr_pos)
+        #     print("self.prev_position: ", self.prev_position)
+        #     print("prev_dist: ", prev_dist)
+        #     print("curr_dist: ", curr_dist)
+        #     print("r_target: ", r_target)
     
 
         curr_rel_pos = current_state[0:3] - self.desired_state[0:3] 
@@ -1001,7 +1007,20 @@ class QuadrotorEnv(gym.Env):
 
 
         # 3. 动作平滑奖励：当前动作与上一次动作的平方差之和
-        r_smooth = np.sum((curr_action - np.array(self.prev_action_))**2)
+        r_smooth = np.sum((curr_action - np.array(self.prev_action_))**2)/16
+        print("r_smooth: ", r_smooth)
+
+        # 3. 惩罚无人机的姿态变化
+        q_prev = self.prev_orientation_q / np.linalg.norm(self.prev_orientation_q)
+        q_curr = current_state[3:7] / np.linalg.norm(current_state[3:7])
+        
+        # 计算内积并裁剪到[-1, 1]范围内
+        dot_product = np.dot(q_prev, q_curr)
+        dot_product = np.clip(dot_product, -1.0, 1.0)
+        # 计算旋转角度差
+        angle_diff = 2 * np.arccos(abs(dot_product))
+        print("angle_diff: ", angle_diff)
+
 
         # 4. 偏航角奖励：从四元数（顺序 [qw, qx, qy, qz]）中计算 yaw
         qw, qx, qy, qz = current_state[3:7]
@@ -1033,10 +1052,14 @@ class QuadrotorEnv(gym.Env):
         #     self.s_vel = 2
         # else:
         #     self.s_vel = 0
+
+        r_step = 1
+        
         total_reward = self.dt*(
-            self.s_pos * r_position  + 1
-            # self.s_target  * r_target +
-            # self.s_smooth * r_smooth +
+            r_step +
+            self.s_pos * r_position  + 
+            self.s_target  * r_target +
+            self.s_smooth * r_smooth 
             # self.s_vel * r_velocity+
             # self.s_yaw * r_yaw +
             # self.s_angular * r_angular +
@@ -1082,6 +1105,7 @@ class QuadrotorEnv(gym.Env):
         self.prev_action_ = curr_action.copy()
         self.prev_rel_pos = curr_rel_pos.copy()
         self.prev_position = curr_pos.copy()
+        self.prev_orientation_q = current_state[3:7]
 
         return norm_obs, total_reward
 
@@ -1116,3 +1140,23 @@ class QuadrotorEnv(gym.Env):
     def close(self):
         rospy.signal_shutdown("Environment closed")
 
+    def quaternion_angle_diff(q_prev, q_curr):
+        """
+        计算两个单位四元数之间的旋转角差（单位：弧度）
+        参数:
+            q_prev: 上一时刻的四元数，数组形式 [w, x, y, z]
+            q_curr: 当前时刻的四元数，数组形式 [w, x, y, z]
+        返回:
+            旋转角差 theta（弧度）
+        """
+        # 确保四元数归一化
+        q_prev = q_prev / np.linalg.norm(q_prev)
+        q_curr = q_curr / np.linalg.norm(q_curr)
+        
+        # 计算内积并裁剪到[-1, 1]范围内
+        dot_product = np.dot(q_prev, q_curr)
+        dot_product = np.clip(dot_product, -1.0, 1.0)
+        
+        # 计算旋转角度差
+        theta = 2 * np.arccos(abs(dot_product))
+        return theta
