@@ -63,7 +63,7 @@ if __name__ == "__main__":
         trainer.train()
     else:
         # 如果需要运行控制模式，则使用其中一个实例（例如 drone_0）
-        env = QuadrotorEnv(namespace="hummingbird0")
+        env = QuadrotorEnv(namespace="hummingbird9")
         obs, _ = env.reset()
         rate = rospy.Rate(50)
         rospy.loginfo("Entering test control loop...")
@@ -72,7 +72,7 @@ if __name__ == "__main__":
             
             action, _ = trainer.model.predict(obs, deterministic=True)
             obs, reward, terminated, truncated, info = env.step(action)
-            if truncated:
-                rospy.loginfo("Episode finished, resetting environment.")
-                obs,_ = env.reset()
+            # if truncated:
+            #     rospy.loginfo("Episode finished, resetting environment.")
+            #     obs,_ = env.reset()
             rate.sleep()

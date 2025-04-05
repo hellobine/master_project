@@ -34,10 +34,6 @@ class QuadrotorEnv(gym.Env):
         x = radius * math.cos(angle)
         y = radius * math.sin(angle)
         z = 2  # 固定悬停高度
-        
-        self.target_hover = np.array([x, y, z], dtype=np.float32)
-        
-        
 
 
         self.mass = 0.73  # kg
@@ -120,7 +116,8 @@ class QuadrotorEnv(gym.Env):
         self.dt = 1/self.control_hz
         self.rate = rospy.Rate(self.control_hz)
         self.current_state = np.zeros(self.state_dim, dtype=np.float32)
-        # target_pos_=[random.randint[-1,1], random.randint[-1,1], random.randint[1,4]]
+
+        self.target_hover = np.array([x, y, z], dtype=np.float32)
         self.desired_state = np.concatenate((
             self.target_hover,
             np.array([1, 0, 0, 0], dtype=np.float32),
@@ -128,10 +125,6 @@ class QuadrotorEnv(gym.Env):
             np.array([0, 0, 0], dtype=np.float32)
         ))
         
-        # self.desired_state = np.array(
-        #     self.target_hover + [1, 0, 0, 0] + [0, 0, 0] + [0, 0, 0],
-        #     dtype=np.float32
-        # )
    
         self.max_episode_steps = 128
         self.step_count = 0
@@ -146,13 +139,13 @@ class QuadrotorEnv(gym.Env):
         # 奖励缩放系数与偏航参数（各项均已乘上时间步长 dt，可按实际需求调整）
         self.s_target = 0.1
         self.s_pos = 1
-        self.s_smooth = -0.05
+        self.s_smooth = -0.4 #-0.05
         self.s_yaw = 0.01
         self.s_angular =  -0.01
         self.s_crash = -3
         self.yaw_lambda =  0.3
         self.s_vel = 0.05
-        self.s_angle_diff = -0.1
+        self.s_angle_diff = -0.8 # -0.1
 
 
         self.prev_pos_error = None
@@ -316,14 +309,14 @@ class QuadrotorEnv(gym.Env):
         self.prev_action_ = [0, 0, 0, 0]
 
         # 重新设定 desired_state 的位置（例如：x,y 在[-1,1]随机，z 固定为3）
-        new_desired_position = np.array([np.random.uniform(-2, 2),
-                                        np.random.uniform(-2, 2),
-                                        np.random.uniform(1, 3)], dtype=np.float32)
+        # new_desired_position = np.array([np.random.uniform(-2, 2),
+        #                                 np.random.uniform(-2, 2),
+        #                                 np.random.uniform(1, 3)], dtype=np.float32)
         
         
-        # new_desired_position = np.array([0,
-        #                                 0,
-        #                                 2], dtype=np.float32)
+        new_desired_position = np.array([0,
+                                        0,
+                                        3], dtype=np.float32)
 
         
         # 更新 desired_state 的前三个坐标
@@ -371,6 +364,10 @@ class QuadrotorEnv(gym.Env):
         state.pose.position.x = reset_position[0]
         state.pose.position.y = reset_position[1]
         state.pose.position.z = reset_position[2]
+
+        # state.pose.position.x = 0
+        # state.pose.position.y = 0
+        # state.pose.position.z = 0.1
 
 
         # 这里可以设置初始朝向，比如保持单位四元数，或根据 init_orientation 设置

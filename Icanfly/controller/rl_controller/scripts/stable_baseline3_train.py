@@ -7,7 +7,7 @@ from stable_baselines3.common.callbacks import BaseCallback
 from stable_baselines3.common.vec_env import DummyVecEnv, VecEnv
 from torch.utils.tensorboard import SummaryWriter
 import matplotlib.pyplot as plt
-# from torch import nn 
+from torch import nn 
 
 
 # 定义一个包装器，将 gymnasium 的新 API 转换为 gym 的 API
@@ -29,7 +29,7 @@ class GymnasiumWrapper(gym.Wrapper):
 
 class SB3PPOTrainer:
     def __init__(self, env, total_timesteps=1e9, batch_size=64, n_steps=128,
-                 gamma=0.99, gae_lambda=0.95, clip_range=0.2, ent_coef=0.08,
+                 gamma=0.99, gae_lambda=0.95, clip_range=0.1, ent_coef=0.0,
                  learning_rate=1e-4, model_path="./run/sb3_ppo_quadrotor"):
         # clip_range can decline zaosheng
         
@@ -48,7 +48,8 @@ class SB3PPOTrainer:
             env=self.env,
             # policy_kwargs={"net_arch": [dict(pi=[256, 256 , 128], vf=[256,256,128])]},
             policy_kwargs={"net_arch": dict(pi=[128, 128], vf=[128, 128]),
-                           "optimizer_kwargs": {"weight_decay": 1e-5 }
+                           "optimizer_kwargs": {"weight_decay": 1e-5 },
+                            "log_std_init": -1
                         #    "activation_fn": nn.Tanh
                            },
 
