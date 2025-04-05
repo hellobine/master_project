@@ -7,6 +7,7 @@ from stable_baselines3.common.callbacks import BaseCallback
 from stable_baselines3.common.vec_env import DummyVecEnv, VecEnv
 from torch.utils.tensorboard import SummaryWriter
 import matplotlib.pyplot as plt
+# from torch import nn 
 
 
 # 定义一个包装器，将 gymnasium 的新 API 转换为 gym 的 API
@@ -46,9 +47,9 @@ class SB3PPOTrainer:
             policy="MlpPolicy",
             env=self.env,
             # policy_kwargs={"net_arch": [dict(pi=[256, 256 , 128], vf=[256,256,128])]},
-            policy_kwargs={"net_arch": dict(pi=[128, 128], vf=[128, 128])
-                           ,
+            policy_kwargs={"net_arch": dict(pi=[128, 128], vf=[128, 128]),
                            "optimizer_kwargs": {"weight_decay": 1e-5 }
+                        #    "activation_fn": nn.Tanh
                            },
 
             learning_rate=learning_rate,
