@@ -93,12 +93,12 @@ int main(int argc, char** argv) {
   ros::Rate rate(10); // 每秒检查 10 次
   while (ros::ok()) {
     if (tl_training or (autopilot_helper.getCurrentAutopilotState() == autopilot::States::HOVER)) {
-        if(flag==0){
-          flag+=1;
+        // if(flag==0){
+        //   flag+=1;
           autopilot_helper.sendTrajectory(traj_msg);
 
-          ROS_INFO("asdasdad");
-        }  
+        //   ROS_INFO("asdasdad");
+        // }  
     }
 
     windspeed_pub.publish(msg);
