@@ -309,14 +309,14 @@ class QuadrotorEnv(gym.Env):
         self.prev_action_ = [0, 0, 0, 0]
 
         # 重新设定 desired_state 的位置（例如：x,y 在[-1,1]随机，z 固定为3）
-        # new_desired_position = np.array([np.random.uniform(-2, 2),
-        #                                 np.random.uniform(-2, 2),
-        #                                 np.random.uniform(1, 3)], dtype=np.float32)
+        new_desired_position = np.array([np.random.uniform(-2, 2),
+                                        np.random.uniform(-2, 2),
+                                        np.random.uniform(1, 3)], dtype=np.float32)
         
         
-        new_desired_position = np.array([0,
-                                        0,
-                                        3], dtype=np.float32)
+        # new_desired_position = np.array([0,
+        #                                 0,
+        #                                 3], dtype=np.float32)
 
         
         # 更新 desired_state 的前三个坐标
@@ -357,7 +357,7 @@ class QuadrotorEnv(gym.Env):
 
     def _reset_drone_pose(self, reset_position):
         # reset_position 为一个 [x, y, z] 的数组，表示无人机的起始位置
-        init_orientation = np.random.uniform(-3, 3, size=3)  
+        init_orientation = np.random.uniform(-0.2, 0.2, size=4)  
         state = ModelState()
         state.model_name = self.namespace  # 确保命名空间匹配 Gazebo 的无人机模型
 
@@ -371,10 +371,10 @@ class QuadrotorEnv(gym.Env):
 
 
         # 这里可以设置初始朝向，比如保持单位四元数，或根据 init_orientation 设置
-        state.pose.orientation.x = 0
-        state.pose.orientation.y = 0
-        state.pose.orientation.z = 0
-        state.pose.orientation.w = 1  # 保持单位四元数
+        state.pose.orientation.x = init_orientation[0]
+        state.pose.orientation.y = init_orientation[1]
+        state.pose.orientation.z = init_orientation[2]
+        state.pose.orientation.w = init_orientation[3]  # 保持单位四元数
 
 
 

@@ -259,7 +259,6 @@
     
   </group> 
  <!-- 
-
  <group ns="hummingbird10">
     <include file="$(find rotors_gazebo)/launch/spawn_mav_RL.launch">
       <arg name="namespace" value="hummingbird10" />
