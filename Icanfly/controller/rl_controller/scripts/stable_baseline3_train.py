@@ -7,11 +7,7 @@ from stable_baselines3.common.callbacks import BaseCallback
 from stable_baselines3.common.vec_env import DummyVecEnv, VecEnv
 from torch.utils.tensorboard import SummaryWriter
 import matplotlib.pyplot as plt
-
-
-# seed = 42
-# np.random.seed(seed)
-# torch.manual_seed(seed)
+from torch import nn 
 
 
 # 定义一个包装器，将 gymnasium 的新 API 转换为 gym 的 API
@@ -32,16 +28,10 @@ class GymnasiumWrapper(gym.Wrapper):
     
 
 class SB3PPOTrainer:
-    def __init__(self, env, total_timesteps=1e9, batch_size=1280, n_steps=128,
-                 gamma=0.99, gae_lambda=0.95, clip_range=0.2, ent_coef=0.02,
-                 learning_rate=1e-4, model_path="sb3_ppo_quadrotor"):
-        
-        # 设置物理参数（仅用于奖励或网络设计参考）
-        self.mass = 0.68
-        self.min_thrust = 9.2
-        self.max_thrust = 40
-
-
+    def __init__(self, env, total_timesteps=1e9, batch_size=64, n_steps=128,
+                 gamma=0.99, gae_lambda=0.95, clip_range=0.1, ent_coef=0.04,
+                 learning_rate=1e-4, model_path="./run/sb3_ppo_quadrotor"):
+        # clip_range can decline zaosheng
         
         # 如果传入的环境未向量化，则先用 GymnasiumWrapper 包装，再用 DummyVecEnv 包装
         if not isinstance(env, VecEnv):
@@ -57,7 +47,11 @@ class SB3PPOTrainer:
             policy="MlpPolicy",
             env=self.env,
             # policy_kwargs={"net_arch": [dict(pi=[256, 256 , 128], vf=[256,256,128])]},
-            policy_kwargs={"net_arch": dict(pi=[128, 64], vf=[128, 64])},
+            policy_kwargs={"net_arch": dict(pi=[128, 128], vf=[128, 128]),
+                           "optimizer_kwargs": {"weight_decay": 1e-5 },
+                            "log_std_init": -1
+                        #    "activation_fn": nn.Tanh
+                           },
 
             learning_rate=learning_rate,
             n_steps=n_steps,
@@ -69,7 +63,7 @@ class SB3PPOTrainer:
             verbose=1,
             # seed=seed,
             # device="cpu",  # 设置使用 GPU
-            tensorboard_log="./sb3_tensorboard/"
+            tensorboard_log="./rl_trajectory_run/sb3_tensorboard/"
         )
         
         plt.ion()
@@ -82,11 +76,11 @@ class SB3PPOTrainer:
         
         self.episode_rewards = []
         self.steps = []
-        self.writer = SummaryWriter(log_dir="./sb3_tensorboard/")
+        self.writer = SummaryWriter(log_dir="./rl_trajectory_run/sb3_tensorboard/")
         
         self.callback = SB3CustomCallback(
-            save_freq=50000,
-            save_path="./sb3_checkpoints/",
+            save_freq=10000,
+            save_path="./rl_trajectory_run/sb3_checkpoints/",
             model=self.model,
             writer=self.writer,
             ax=self.ax,
@@ -132,12 +126,24 @@ class SB3CustomCallback(BaseCallback):
     def _on_step(self) -> bool:
         if self.locals.get("infos"):
             for info in self.locals["infos"]:
+                
                 if "reward" in info:
                     self.writer.add_scalar("Reward/Step", info["reward"], self.num_timesteps)
                 if "episode" in info:
-                    self.episode_rewards.append(info["episode"]["r"])
+                    average_10_reward=0
+                    if len(self.episode_rewards) >= 10:
+                        recent_10 = self.episode_rewards[-9:]
+                        recent_10.append(info["episode"]["r"])
+                        average_10_reward = sum(recent_10) / 10.0
+                        self.episode_rewards.append(average_10_reward)
+                    else:
+                        # continue
+                        # average_10_reward = sum(self.episode_rewards) / len(self.episode_rewards)
+                        self.episode_rewards.append(info["episode"]["r"])
+                    
+                    # self.episode_rewards.append(info["episode"]["r"])
                     self.steps.append(self.num_timesteps)
-                    print(f"Episode ended at step {self.num_timesteps}, reward: {info['episode']['r']}")
+                    # print(f"Episode ended at step {self.num_timesteps}, reward: {info['episode']['r']}")
                     
         if self.num_timesteps % self.save_freq == 0:
             save_path = f"{self.save_path}/ppo_quad_{self.num_timesteps}"
@@ -147,6 +153,7 @@ class SB3CustomCallback(BaseCallback):
 
     def _update_plot(self):
         self.ax.clear()
+
         self.ax.plot(self.steps, self.episode_rewards, label="Episode Reward")
         self.ax.set_xlabel("Global Step")
         self.ax.set_ylabel("Reward")
