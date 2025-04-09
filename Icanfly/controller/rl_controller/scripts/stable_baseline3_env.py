@@ -32,7 +32,7 @@ class QuadrotorEnv(gym.Env):
         self.action_dim = 4  # [thrust, ωx, ωy, ωz]
         
         self.max_position_error = 5.0  # 米
-        self.max_velocity_error = 8.0  # 米
+        self.max_velocity_error = 5.0  # 米
 
         
         self.observation_space = spaces.Box(
@@ -110,8 +110,7 @@ class QuadrotorEnv(gym.Env):
         self.desired_state = np.array([0, 0, 3, 0, 0, 0, 1, 0, 0, 0,], dtype=np.float32)
 
         # 安全和步数设置
-        self.max_position_error = 5.0  # m
-        self.max_episode_steps = 128
+        self.max_episode_steps = 64
 
         self.step_count = 0
         self.episode_reward = 0
@@ -122,17 +121,17 @@ class QuadrotorEnv(gym.Env):
         self.prev_rel_pos = None  # 上一步的相对位置
 
         # reward weight
-        self.s_target = 0.1
-        self.s_pos = 1
+        self.s_target = 0.3
+        self.s_pos = 1.2
         self.s_smooth = -0.4 #-0.05
         self.s_yaw = 0.01
         self.s_angular =  -0.01
-        self.s_crash = -3
+        self.s_crash = -1
         self.yaw_lambda =  0.3
         self.s_vel = 0.05
-        self.s_angle_diff = -0.6 # -0.1
+        self.s_angle_diff = -0.4 # -0.1
 
-        self.s_r_step = 0.8
+        self.s_r_step = 0.1
 
 
         self.prev_pos_error = None
@@ -211,27 +210,27 @@ class QuadrotorEnv(gym.Env):
         self.prev_action_ = [0, 0, 0, 0]
 
         # 重新设定 desired_state 的位置（例如：x,y 在[-1,1]随机，z 固定为3）
-        # new_desired_position = np.array([np.random.uniform(-2, 2),
-        #                                 np.random.uniform(-2, 2),
-        #                                 np.random.uniform(1, 3)], dtype=np.float32)
+        new_desired_position = np.array([np.random.uniform(-1, 1),
+                                        np.random.uniform(-1, 1),
+                                        np.random.uniform(1, 3)], dtype=np.float32)
         
         
-        new_desired_position = np.array([0,
-                                        0,
-                                        3], dtype=np.float32)
+        # new_desired_position = np.array([0,
+        #                                 0,
+        #                                 1], dtype=np.float32)
 
         
         # 更新 desired_state
         self.desired_state[0:3] = new_desired_position
 
         # 计算 reset 时的起始位置，设为 desired_state 正下方 1 米（根据实际需求调整）
-        # reset_position = np.array([np.random.uniform(-2, 2),
-        #                                 np.random.uniform(-2, 2),
-        #                                 np.random.uniform(1, 3)], dtype=np.float32)
+        reset_position = np.array([np.random.uniform(-1, 1),
+                                        np.random.uniform(-1, 1),
+                                        np.random.uniform(0, 3)], dtype=np.float32)
         
-        reset_position = np.array([0,
-                                0,
-                                0.1], dtype=np.float32)
+        # reset_position = np.array([0,
+        #                         0,
+        #                         0.1], dtype=np.float32)
 
         # 重置无人机位置
         self._reset_drone_pose(reset_position)
@@ -366,11 +365,12 @@ class QuadrotorEnv(gym.Env):
         r_step = 1
         
         total_reward = self.dt*(
-            self.s_r_step * r_step +
-            self.s_pos * r_position  + 
+            # self.s_r_step * r_step +
+            self.s_pos * r_position  +
             self.s_target  * r_target +
-            self.s_smooth * r_smooth +
-            self.s_angle_diff * angle_diff +
+            # self.s_smooth * r_smooth +
+            # self.s_angle_diff * angle_diff +
+
             # self.s_vel * r_velocity+
             # self.s_yaw * r_yaw +
             # self.s_angular * r_angular +

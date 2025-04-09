@@ -113,7 +113,7 @@ def make_env(rank, base_namespace="hummingbird"):
 if __name__ == "__main__":
     rospy.init_node('quadrotor_rl_node', anonymous=True)
     
-    train_flag = False
+    train_flag = True
     num_envs = 10  # 根据需求调整并行环境数量
     env_fns = [make_env(i) for i in range(num_envs)]
     vec_env = SubprocVecEnv(env_fns)
@@ -121,8 +121,8 @@ if __name__ == "__main__":
     trainer = SB3PPOTrainer(
         env=vec_env,
         total_timesteps=1_000_000_000,
-        batch_size= 128*num_envs,#256
-        n_steps=128, #256
+        batch_size= 64*num_envs,#256
+        n_steps=64, #256
         model_path="./rl_trajectory_run/sb3_quadrotor_hover"
     )
     
