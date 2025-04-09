@@ -29,7 +29,7 @@ class GymnasiumWrapper(gym.Wrapper):
 
 class SB3PPOTrainer:
     def __init__(self, env, total_timesteps=1e9, batch_size=64, n_steps=128,
-                 gamma=0.99, gae_lambda=0.95, clip_range=0.1, ent_coef=0.0,
+                 gamma=0.99, gae_lambda=0.95, clip_range=0.1, ent_coef=0.2,
                  learning_rate=1e-4, model_path="./run/sb3_ppo_quadrotor"):
         # clip_range can decline zaosheng
         
