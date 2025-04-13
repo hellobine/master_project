@@ -81,7 +81,7 @@ import os
 import re
 import rospy
 from stable_baseline3_env import QuadrotorEnv
-from stable_baseline3_train import SB3PPOTrainer
+from stable_baseline3_train_v0 import PPOTrainer
 from stable_baselines3.common.vec_env import SubprocVecEnv
 
 def get_latest_checkpoint(checkpoint_dir):
@@ -113,16 +113,16 @@ def make_env(rank, base_namespace="hummingbird"):
 if __name__ == "__main__":
     rospy.init_node('quadrotor_rl_node', anonymous=True)
     
-    train_flag = True
+    train_flag = False
     num_envs = 10  # 根据需求调整并行环境数量
     env_fns = [make_env(i) for i in range(num_envs)]
     vec_env = SubprocVecEnv(env_fns)
     
-    trainer = SB3PPOTrainer(
+    trainer = PPOTrainer(
         env=vec_env,
-        total_timesteps=1_000_000_000,
-        batch_size= 64*num_envs,#256
-        n_steps=64, #256
+        total_timesteps=1_000_000_00,
+        # batch_size= 128*num_envs,#256
+        # n_steps=128, #256
         model_path="./rl_trajectory_run/sb3_quadrotor_hover"
     )
     
@@ -141,16 +141,16 @@ if __name__ == "__main__":
         trainer.train()
     else:
         # 如果需要运行控制模式，则使用其中一个实例（例如 drone_0）
-        env = QuadrotorEnv(namespace="hummingbird1")
+        env = QuadrotorEnv(namespace="hummingbird0")
         obs, _ = env.reset()
         rate = rospy.Rate(100)
         rospy.loginfo("Entering test control loop...")
-        obs,_ = env.reset()
+    
         while not rospy.is_shutdown():
-            
             action, _ = trainer.model.predict(obs, deterministic=True)
             obs, reward, terminated, truncated, info = env.step(action)
-            if truncated:
-                rospy.loginfo("Episode finished, resetting environment.")
-                obs,_ = env.reset()
+            print("reward: ", reward)
+            # if truncated:
+            #     rospy.loginfo("Episode finished, resetting environment.")
+            #     obs,_ = env.reset()
             rate.sleep()

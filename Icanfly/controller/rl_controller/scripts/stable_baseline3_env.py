@@ -28,17 +28,17 @@ class QuadrotorEnv(gym.Env):
         self.max_angular_rate = 5.0
 
  
-        self.state_dim = 17  # [px, py, pz, qx, qy, qz, qw, vx, vy, vz, ang_x, ang_y, ang_z]
+        self.state_dim = 22  # [px, py, pz, qx, qy, qz, qw, vx, vy, vz, ang_x, ang_y, ang_z]
         self.action_dim = 4  # [thrust, ωx, ωy, ωz]
         
         self.max_position_error = 5.0  # 米
-        self.max_velocity_error = 5.0  # 米
+        self.max_velocity_error = 8.0  # 米
 
         
         self.observation_space = spaces.Box(
             low=np.concatenate((
                 np.full(3, -1.0, dtype=np.float32),  # Position difference
-                np.full(4, -1.0, dtype=np.float32),  # Quaternion w,x,y,z
+                np.full(9, -1.0, dtype=np.float32),  # Quaternion w,x,y,z
                 np.full(3, -1.0, dtype=np.float32),  # Velocity
                 np.full(3, -1.0, dtype=np.float32),  # Angular rate
                 np.full(1, -1.0, dtype=np.float32),  # Previous action
@@ -46,7 +46,7 @@ class QuadrotorEnv(gym.Env):
             )),
             high=np.concatenate((
                 np.full(3, 1.0, dtype=np.float32),
-                np.full(4, 1.0, dtype=np.float32),
+                np.full(9, 1.0, dtype=np.float32),
                 np.full(3, 1.0, dtype=np.float32),
                 np.full(3, 1.0, dtype=np.float32),
                 np.full(1, 1.0, dtype=np.float32),
@@ -57,7 +57,7 @@ class QuadrotorEnv(gym.Env):
 
         self.obs_real_low = np.concatenate((
             np.full(3, -self.max_position_error),    # rel_pos
-            np.full(4, -1.0),                        # base_quat（假设已归一化）
+            np.full(9, -1.0),                        # base_quat（假设已归一化）
             np.full(3, -self.max_velocity_error),    # base_lin_vel
             np.full(3, -self.max_angular_rate),      # base_ang_vel
             np.full(1, self.min_thrust),             # last_actions
@@ -66,7 +66,7 @@ class QuadrotorEnv(gym.Env):
 
         self.obs_real_high = np.concatenate((
             np.full(3, self.max_position_error),    # rel_pos
-            np.full(4, 1.0),                        # base_quat（假设已归一化）
+            np.full(9, 1.0),                        # base_quat（假设已归一化）
             np.full(3, self.max_velocity_error),    # base_lin_vel
             np.full(3, self.max_angular_rate),      # base_ang_vel
             np.full(1, self.max_thrust),             # last_actions
@@ -110,7 +110,7 @@ class QuadrotorEnv(gym.Env):
         self.desired_state = np.array([0, 0, 3, 0, 0, 0, 1, 0, 0, 0,], dtype=np.float32)
 
         # 安全和步数设置
-        self.max_episode_steps = 64
+        self.max_episode_steps = 128
 
         self.step_count = 0
         self.episode_reward = 0
@@ -121,17 +121,15 @@ class QuadrotorEnv(gym.Env):
         self.prev_rel_pos = None  # 上一步的相对位置
 
         # reward weight
-        self.s_target = 0.3
-        self.s_pos = 1.2
+        self.s_target = 1
+        self.s_pos = 1
         self.s_smooth = -0.4 #-0.05
         self.s_yaw = 0.01
         self.s_angular =  -0.01
-        self.s_crash = -1
+        self.s_crash = -10
         self.yaw_lambda =  0.3
-        self.s_vel = 0.05
+        self.s_vel = 0.0 # 0.2
         self.s_angle_diff = -0.4 # -0.1
-
-        self.s_r_step = 0.1
 
 
         self.prev_pos_error = None
@@ -144,12 +142,22 @@ class QuadrotorEnv(gym.Env):
         self.prev_orientation_q = [0,0,0,0]           # 用于记录上一步的4 yuanshu
    
 
-        rospy.sleep(1.0)
+        rospy.sleep(1)
     
         if not rospy.is_shutdown():
             msg = Bool(data=True)
             self.arm_pub.publish(msg)
             rospy.loginfo("Published arm message: true")
+
+
+
+        reset_position = np.array([np.random.uniform(-2, 2),
+                                                np.random.uniform(-2, 2),
+                                                np.random.uniform(0, 4)], dtype=np.float32)
+                
+
+        self._reset_drone_pose(reset_position)
+
 
     def odom_callback(self, msg):
         with self.state_lock:
@@ -175,6 +183,17 @@ class QuadrotorEnv(gym.Env):
                 pos + rot_mat + lin_vel + ang_vel, dtype=np.float32
             )
 
+    def quaternion_to_rot_matrix(self, quat):
+        """
+        将四元数 [qw, qx, qy, qz] 转换为 3x3 旋转矩阵，并平铺成长度为 9 的向量
+        """
+        qw, qx, qy, qz = quat
+        R = np.array([
+            [1 - 2*qy*qy - 2*qz*qz,   2*qx*qy - 2*qz*qw,     2*qx*qz + 2*qy*qw],
+            [2*qx*qy + 2*qz*qw,       1 - 2*qx*qx - 2*qz*qz, 2*qy*qz - 2*qx*qw],
+            [2*qx*qz - 2*qy*qw,       2*qy*qz + 2*qx*qw,     1 - 2*qx*qx - 2*qy*qy]
+        ], dtype=np.float32)
+        return R.flatten()
 
     def step(self, action):
         self.step_count += 1
@@ -210,23 +229,23 @@ class QuadrotorEnv(gym.Env):
         self.prev_action_ = [0, 0, 0, 0]
 
         # 重新设定 desired_state 的位置（例如：x,y 在[-1,1]随机，z 固定为3）
-        new_desired_position = np.array([np.random.uniform(-1, 1),
-                                        np.random.uniform(-1, 1),
-                                        np.random.uniform(1, 3)], dtype=np.float32)
+        new_desired_position = np.array([np.random.uniform(-2, 2),
+                                        np.random.uniform(-2, 2),
+                                        np.random.uniform(0, 4)], dtype=np.float32)
         
         
-        # new_desired_position = np.array([0,
-        #                                 0,
-        #                                 1], dtype=np.float32)
+        new_desired_position = np.array([0,
+                                        0,
+                                        2.5], dtype=np.float32)
 
         
         # 更新 desired_state
         self.desired_state[0:3] = new_desired_position
 
         # 计算 reset 时的起始位置，设为 desired_state 正下方 1 米（根据实际需求调整）
-        reset_position = np.array([np.random.uniform(-1, 1),
-                                        np.random.uniform(-1, 1),
-                                        np.random.uniform(0, 3)], dtype=np.float32)
+        reset_position = np.array([np.random.uniform(-2, 2),
+                                        np.random.uniform(-2, 2),
+                                        np.random.uniform(0, 4)], dtype=np.float32)
         
         # reset_position = np.array([0,
         #                         0,
@@ -239,12 +258,15 @@ class QuadrotorEnv(gym.Env):
         self.prev_orientation_q = self.current_state[3:7]
         
         curr_rel_pos = self.current_state[0:3] - self.desired_state[0:3]
-        base_quat = self.current_state[3:7]
+
+         # 使用四元数转换为旋转矩阵
+        rot_mat = self.quaternion_to_rot_matrix(self.current_state[3:7])
+        
         base_lin_vel = self.current_state[7:10]
         base_ang_vel = self.current_state[10:13]
         obs = np.concatenate((
             curr_rel_pos,
-            base_quat,
+            rot_mat,
             base_lin_vel,
             base_ang_vel,
             np.array(self.prev_action_)
@@ -308,10 +330,12 @@ class QuadrotorEnv(gym.Env):
         curr_dist = np.linalg.norm(self.desired_state[0:3] - curr_pos)
         r_progress_dis = prev_dist - curr_dist
 
-        r_target = np.tanh(0.5*r_progress_dis)
+        r_target = np.tanh(30*r_progress_dis)
+        # print("r_target: ", r_target)
 
         curr_rel_pos = current_state[0:3] - self.desired_state[0:3] 
-        curr_rel_dis = np.linalg.norm(current_state[0:3] - self.desired_state[0:3])
+        curr_rel_dis = np.linalg.norm(current_state[0:3] - self.desired_state[0:3])/self.max_position_error
+
         # r_position = -curr_rel_dis/self.max_position_error # np.exp(-1.7 * curr_rel_dis)
         r_position = np.exp(-1.0 * curr_rel_dis)
 
@@ -322,8 +346,11 @@ class QuadrotorEnv(gym.Env):
 
 
         # 3. 动作平滑奖励：当前动作与上一次动作的平方差之和
-        r_smooth = np.sum((curr_action - np.array(self.prev_action_))**2)/16
-        # print("r_smooth: ", r_smooth)
+        r_smooth = np.sum((curr_action - np.array(self.prev_action_))**2)/5
+        # print("np.sum((curr_action - np.array(self.prev_action_))**2): ",np.sum((curr_action - np.array(self.prev_action_))**2))
+        # print("curr_action: ", curr_action)
+
+        # print("self.prev_action_: ", self.prev_action_)
 
         # 3. 惩罚无人机的姿态变化
         epsilon=1e-6
@@ -365,13 +392,15 @@ class QuadrotorEnv(gym.Env):
         r_step = 1
         
         total_reward = self.dt*(
-            # self.s_r_step * r_step +
-            self.s_pos * r_position  +
+            # r_step +
+            self.s_pos * curr_rel_dis  +
             self.s_target  * r_target +
+            self.s_smooth * r_smooth +
+            # self.s_angle_diff * angle_diff+
             # self.s_smooth * r_smooth +
             # self.s_angle_diff * angle_diff +
 
-            # self.s_vel * r_velocity+
+            # self.s_vel * r_velocity
             # self.s_yaw * r_yaw +
             # self.s_angular * r_angular +
             self.s_crash * r_crash 
@@ -379,14 +408,20 @@ class QuadrotorEnv(gym.Env):
         )
 
 
-        base_quat = current_state[3:7]
+        # print("self.s_pos * curr_rel_dis: ", self.s_pos * curr_rel_dis , 
+        #       "\nself.s_target  * r_target: ", self.s_target  * r_target, 
+        #       "\nself.s_smooth * r_smooth: ",  self.s_smooth * r_smooth)
+
+
+        rot_mat = self.quaternion_to_rot_matrix(current_state[3:7])
         base_lin_vel = current_state[7:10]
         base_ang_vel = current_state[10:13]
-        
+        obs = np.concatenate((curr_rel_pos, rot_mat, base_lin_vel, base_ang_vel, np.array(self.prev_action_)))
+    
 
         obs = np.concatenate((
             curr_rel_pos,
-            base_quat,
+            rot_mat,
             base_lin_vel,
             base_ang_vel,
             np.array(self.prev_action_)
@@ -403,23 +438,14 @@ class QuadrotorEnv(gym.Env):
 
     def _normalize_obs(self, obs):
         """
-         norm = 2 * (obs - low) / (high - low) - 1
+        将观测数据归一化到 [-1, 1] 范围内：
+           norm = 2 * (obs - low) / (high - low) - 1
+        这里将前 18 维（3+9+3+3）归一化，剩下 4 维（上一次动作）直接使用
         """
-        # print("原始 obs: ", obs)
-        
-        # 归一化前13维
-        norm_obs_first = (obs[0:13] - self.obs_real_low[0:13]) / (self.obs_real_high[0:13] - self.obs_real_low[0:13] + 1e-8)
+        norm_obs_first = (obs[0:18] - self.obs_real_low[0:18]) / (self.obs_real_high[0:18] - self.obs_real_low[0:18] + 1e-8)
         norm_obs_first = norm_obs_first * 2 - 1
-        # print("归一化后的前13维: ", norm_obs_first)
-        
-        # 后面的[13:17]部分直接使用，因为预设动作输出已处于[-1,1]
-        norm_obs_second = obs[13:17]
-        # print("直接使用的后4维 (动作部分): ", norm_obs_second)
-        
-        # 拼接两个部分
+        norm_obs_second = obs[18:22]
         norm_obs = np.concatenate((norm_obs_first, norm_obs_second))
-        # print("最终归一化后的 obs: ", norm_obs)
-        
         return norm_obs.astype(np.float32)
     
     def safe_normalize(self, q, epsilon=1e-6):
@@ -436,7 +462,7 @@ class QuadrotorEnv(gym.Env):
 
     def _check_done(self, curr_state):
         pos_error = np.linalg.norm(curr_state[0:3] - self.desired_state[0:3])
-        if pos_error > self.max_position_error:
+        if pos_error > self.max_position_error or curr_state[2]<0:
             return True
         
         qw = curr_state[3]

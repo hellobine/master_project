@@ -1,14 +1,11 @@
 import numpy as np
-import torch
-# import gym
 import gymnasium as gym
-from stable_baselines3 import PPO
+from stable_baselines3.ppo import PPO
 from stable_baselines3.common.callbacks import BaseCallback
 from stable_baselines3.common.vec_env import DummyVecEnv, VecEnv
 from torch.utils.tensorboard import SummaryWriter
 import matplotlib.pyplot as plt
-from torch import nn 
-
+from torch import nn
 
 # 定义一个包装器，将 gymnasium 的新 API 转换为 gym 的 API
 class GymnasiumWrapper(gym.Wrapper):
@@ -27,12 +24,10 @@ class GymnasiumWrapper(gym.Wrapper):
         return obs
     
 
-class SB3PPOTrainer:
-    def __init__(self, env, total_timesteps=1e9, batch_size=64, n_steps=128,
-                 gamma=0.99, gae_lambda=0.95, clip_range=0.1, ent_coef=0.2,
-                 learning_rate=1e-4, model_path="./run/sb3_ppo_quadrotor"):
-        # clip_range can decline zaosheng
-        
+class PPOTrainer:
+    def __init__(self, env, total_timesteps=1e9, n_steps=128,
+                 gamma=0.99, gae_lambda=0.95, clip_range=0.08, ent_coef=0.04,
+                 learning_rate=1e-4, model_path="./run/ppo2_quadrotor"):
         # 如果传入的环境未向量化，则先用 GymnasiumWrapper 包装，再用 DummyVecEnv 包装
         if not isinstance(env, VecEnv):
             self.env = DummyVecEnv([lambda: GymnasiumWrapper(env)])
@@ -42,28 +37,27 @@ class SB3PPOTrainer:
         self.total_timesteps = int(total_timesteps)
         self.model_path = model_path
         
-        # 使用内置的 MlpPolicy，不再引用自定义策略
+        # 对于 PPO2 来说，batch_size = n_steps / nminibatches
+        # 假设原来希望 batch_size=64, 且 n_steps=128，那么 nminibatches 可以设置为 2
         self.model = PPO(
             policy="MlpPolicy",
             env=self.env,
-            # policy_kwargs={"net_arch": [dict(pi=[256, 256 , 128], vf=[256,256,128])]},
-            policy_kwargs={"net_arch": dict(pi=[128, 128], vf=[128, 128]),
-                           "optimizer_kwargs": {"weight_decay": 1e-5 },
-                            "log_std_init": -1
-                        #    "activation_fn": nn.Tanh
-                           },
-
-            learning_rate=learning_rate,
-            n_steps=n_steps,
-            batch_size=batch_size,
-            gamma=gamma,
-            gae_lambda=gae_lambda,
-            clip_range=clip_range,
-            ent_coef=ent_coef,
+            # policy_kwargs={
+            #     "net_arch": dict(pi=[128, 128], vf=[128, 128]),
+            #     "optimizer_kwargs": {"weight_decay": 1e-5},
+            #     "log_std_init": -1
+            # },
+            # learning_rate=learning_rate,
+            # n_steps=n_steps,
+            # nminibatches=2,  # 128 / 2 = 64，相当于原来设置的 batch_size
+            # gamma=gamma,
+            # lam=gae_lambda,
+            # noptepochs=4,
+            # cliprange=clip_range,
+            # ent_coef=ent_coef,
             verbose=1,
-            # seed=seed,
-            # device="cpu",  # 设置使用 GPU
-            tensorboard_log="./rl_trajectory_run/sb3_tensorboard/"
+            seed=42,
+            tensorboard_log="./rl_trajectory_run/ppo2_tensorboard/"
         )
         
         plt.ion()
@@ -76,11 +70,11 @@ class SB3PPOTrainer:
         
         self.episode_rewards = []
         self.steps = []
-        self.writer = SummaryWriter(log_dir="./rl_trajectory_run/sb3_tensorboard/")
+        self.writer = SummaryWriter(log_dir="./rl_trajectory_run/ppo2_tensorboard/")
         
-        self.callback = SB3CustomCallback(
+        self.callback = PPO2CustomCallback(
             save_freq=10000,
-            save_path="./rl_trajectory_run/sb3_checkpoints/",
+            save_path="./rl_trajectory_run/ppo2_checkpoints/",
             model=self.model,
             writer=self.writer,
             ax=self.ax,
@@ -111,7 +105,7 @@ class SB3PPOTrainer:
         self.model = PPO.load(path, env=self.env)
         print(f"Model loaded from {path}")
 
-class SB3CustomCallback(BaseCallback):
+class PPO2CustomCallback(BaseCallback):
     def __init__(self, save_freq, save_path, model, writer, ax, fig, episode_rewards, steps, verbose=0):
         super().__init__(verbose)
         self.save_freq = save_freq
@@ -126,34 +120,20 @@ class SB3CustomCallback(BaseCallback):
     def _on_step(self) -> bool:
         if self.locals.get("infos"):
             for info in self.locals["infos"]:
-                
                 if "reward" in info:
                     self.writer.add_scalar("Reward/Step", info["reward"], self.num_timesteps)
                 if "episode" in info:
-                    average_10_reward=0
-                    if len(self.episode_rewards) >= 10:
-                        recent_10 = self.episode_rewards[-9:]
-                        recent_10.append(info["episode"]["r"])
-                        average_10_reward = sum(recent_10) / 10.0
-                        self.episode_rewards.append(average_10_reward)
-                    else:
-                        # continue
-                        # average_10_reward = sum(self.episode_rewards) / len(self.episode_rewards)
-                        self.episode_rewards.append(info["episode"]["r"])
-                    
-                    # self.episode_rewards.append(info["episode"]["r"])
+                    self.episode_rewards.append(info["episode"]["r"])
                     self.steps.append(self.num_timesteps)
-                    # print(f"Episode ended at step {self.num_timesteps}, reward: {info['episode']['r']}")
                     
         if self.num_timesteps % self.save_freq == 0:
-            save_path = f"{self.save_path}/ppo_quad_{self.num_timesteps}"
+            save_path = f"{self.save_path}/ppo2_quad_{self.num_timesteps}"
             self._update_plot()
             self.model.save(save_path)
         return True
 
     def _update_plot(self):
         self.ax.clear()
-
         self.ax.plot(self.steps, self.episode_rewards, label="Episode Reward")
         self.ax.set_xlabel("Global Step")
         self.ax.set_ylabel("Reward")
@@ -161,3 +141,12 @@ class SB3CustomCallback(BaseCallback):
         self.fig.canvas.draw()
         self.fig.canvas.flush_events()
         plt.pause(0.01)
+
+# 使用示例：
+if __name__ == "__main__":
+    # 创建环境，比如使用 gym 的 CartPole-v1 作为例子
+    env = gym.make("CartPole-v1")
+    trainer = PPOTrainer(env, total_timesteps=100000, n_steps=128,
+                            gamma=0.99, gae_lambda=0.95, clip_range=0.2,
+                            ent_coef=0.01, learning_rate=2.5e-4, model_path="./ppo2_cartpole")
+    trainer.train()
