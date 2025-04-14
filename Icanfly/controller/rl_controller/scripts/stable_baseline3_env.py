@@ -103,11 +103,11 @@ class QuadrotorEnv(gym.Env):
         self.cmd_pub = rospy.Publisher(f'/{self.namespace}/control_command', ControlCommand, queue_size=1)
         self.arm_pub = rospy.Publisher(f'/{self.namespace}/bridge/arm', Bool, queue_size=1)
         self.windspeed_pub = rospy.Publisher(f'/{self.namespace}/wind_speed', WindSpeed, queue_size=1)
-        
+       
 
         # env parm
         self.current_state = np.zeros(self.state_dim, dtype=np.float32)
-        self.desired_state = np.array([0, 0, 3, 0, 0, 0, 1, 0, 0, 0,], dtype=np.float32)
+        self.desired_state = np.array([0, 0, 3, 1, 0, 0, 0, 0, 0, 0,], dtype=np.float32) 
 
         # 安全和步数设置
         self.max_episode_steps = 128
@@ -149,6 +149,20 @@ class QuadrotorEnv(gym.Env):
             self.arm_pub.publish(msg)
             rospy.loginfo("Published arm message: true")
 
+        
+        
+        rospy.set_param('wind_speed/level', 0) #2 5 10
+
+        self.timer_windspeed = rospy.Timer(rospy.Duration(0.01), self.control_wind_speed)
+
+        
+        # 轨迹周期 - velocity
+        self.T = 5.0
+        # self.T = 10.0
+        # self.T = 15.0
+        self.timer_trajectory = rospy.Timer(rospy.Duration(0.01), self.update_desired_state)
+
+
 
 
         reset_position = np.array([np.random.uniform(-2, 2),
@@ -157,6 +171,63 @@ class QuadrotorEnv(gym.Env):
                 
 
         self._reset_drone_pose(reset_position)
+
+    def control_wind_speed(self, event):
+        """
+        定时器回调函数，每次触发时：
+        - 从参数服务器读取三个风速大小的值（低、中、高）。
+        - 随机选择一个风速值，并生成一个 0~360 度的随机风向。
+        - 计算风速在 x、y 方向的分量（z 分量保持为 0），发布 WindSpeed 消息。
+        """
+
+        if rospy.is_shutdown():
+            return  # 防止节点关闭时发布消息
+
+        speed = rospy.get_param('wind_speed/level', 0.0)
+        
+        # 固定主方向为 x 轴正方向 (0°)
+        main_angle_deg = 0.0
+        # 添加小幅度扰动，例如 ±5°
+        disturbance_range = 30.0  
+        delta_angle_deg = random.uniform(-disturbance_range, disturbance_range)
+        total_angle_deg = main_angle_deg + delta_angle_deg
+        angle_rad = np.deg2rad(total_angle_deg)
+        
+        # 计算 x,y 分量
+        vx = speed * np.cos(angle_rad)
+        vy = speed * np.sin(angle_rad)
+        
+        # 在 z 方向加入小扰动，例如 ±10% 的风速
+        vz = speed * 0.1 * random.uniform(-1, 1)
+
+        # 构造 WindSpeed 消息并发布
+        wind_msg = WindSpeed()
+        wind_msg.header.stamp = rospy.Time.now()
+        wind_msg.header.frame_id = "world"  # 或根据需要修改
+        wind_msg.velocity.x = vx
+        wind_msg.velocity.y = vy
+        wind_msg.velocity.z = vz
+
+        try:
+            self.windspeed_pub.publish(wind_msg)
+        except rospy.ROSException as e:
+            rospy.logwarn(f"发布风速消息失败: {e}")
+
+
+
+    def update_desired_state(self, event):
+        """
+        轨迹点公式：
+           p(t) = [ cos(2*pi*t/T), sin(4*pi*t/T)/2, 1 ]
+        """
+
+        t = rospy.get_time()
+        new_position = np.array([
+            np.cos(2 * np.pi * t / self.T),
+            np.sin(4 * np.pi * t / self.T) / 2,
+            1.0
+        ], dtype=np.float32)
+        self.desired_state[0:3] = new_position
 
 
     def odom_callback(self, msg):
@@ -229,23 +300,28 @@ class QuadrotorEnv(gym.Env):
         self.prev_action_ = [0, 0, 0, 0]
 
         # 重新设定 desired_state 的位置（例如：x,y 在[-1,1]随机，z 固定为3）
-        new_desired_position = np.array([np.random.uniform(-2, 2),
-                                        np.random.uniform(-2, 2),
-                                        np.random.uniform(0, 4)], dtype=np.float32)
+        # new_desired_position = np.array([np.random.uniform(-2, 2),
+        #                                 np.random.uniform(-2, 2),
+        #                                 np.random.uniform(0, 4)], dtype=np.float32)
         
         
-        new_desired_position = np.array([0,
-                                        0,
-                                        2.5], dtype=np.float32)
+        # new_desired_position = np.array([0,
+        #                                 0,
+        #                                 2.5], dtype=np.float32)
 
         
         # 更新 desired_state
-        self.desired_state[0:3] = new_desired_position
+        # self.desired_state[0:3] = new_desired_position
 
         # 计算 reset 时的起始位置，设为 desired_state 正下方 1 米（根据实际需求调整）
-        reset_position = np.array([np.random.uniform(-2, 2),
-                                        np.random.uniform(-2, 2),
-                                        np.random.uniform(0, 4)], dtype=np.float32)
+        # reset_position = np.array([np.random.uniform(-2, 2),
+        #                                 np.random.uniform(-2, 2),
+        #                                 np.random.uniform(0, 4)], dtype=np.float32)
+        
+
+        reset_position = np.array([np.random.uniform(-1, 1),
+                                   np.random.uniform(-1, 1),
+                                   np.random.uniform(0.0, 2)], dtype=np.float32)
         
         # reset_position = np.array([0,
         #                         0,
