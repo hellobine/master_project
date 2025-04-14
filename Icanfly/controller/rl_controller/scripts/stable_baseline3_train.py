@@ -138,7 +138,9 @@ class SB3CustomCallback(BaseCallback):
         self.num_timesteps = 0  
 
     def __call__(self, locals_: dict, globals_: dict):
-        self.num_timesteps = locals_.get("self", self).num_timesteps if "self" in locals_ else self.num_timesteps + 1
+        # self.num_timesteps = locals_.get("self", self).num_timesteps if "self" in locals_ else self.num_timesteps + 1
+
+        # self.num_timesteps += 1
         return self._on_step(locals_)
         
     def _on_step(self, locals_):
@@ -149,17 +151,18 @@ class SB3CustomCallback(BaseCallback):
                 if "reward" in info:
                     self.writer.add_scalar("Reward/Step", info["reward"], self.num_timesteps)
                 if "episode" in info:
+                    # print("self.num_timesteps: ", self.num_timesteps)
+                    self.num_timesteps += info["episode"]["l"]
                     self.episode_rewards.append(info["episode"]["r"])
                     self.steps.append(self.num_timesteps)
- 
-                
-
-        if self.num_timesteps % self.save_freq == 0:
+         
+        # print("self.num_timesteps % self.save_freq: ", self.num_timesteps % self.save_freq)
+        if self.num_timesteps % self.save_freq < 100:
             save_path = f"{self.save_path}/ppo_quad_{self.num_timesteps}"
             self._update_plot(self.num_timesteps)
             self.model.save(save_path)
 
-        if self.num_timesteps % 100000 == 0:
+        if self.num_timesteps % self.save_freq < 100:
             csv_file_path = os.path.join(reward_file_dir, f"training_data_{self.num_timesteps}.csv")
             with open(csv_file_path, mode='w', newline='') as csv_file:
                 writer = csv.writer(csv_file)

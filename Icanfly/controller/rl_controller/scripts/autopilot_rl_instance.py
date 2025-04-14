@@ -73,8 +73,8 @@ if __name__ == "__main__":
         while not rospy.is_shutdown():
             action, _ = trainer.model.predict(obs, deterministic=True)
             obs, reward, terminated, truncated, info = env.step(action)
-            print("reward: ", reward)
-            # if truncated:
-            #     rospy.loginfo("Episode finished, resetting environment.")
-            #     obs,_ = env.reset()
+            # print("reward: ", reward)
+            if truncated:
+                rospy.loginfo("Episode finished, resetting environment.")
+                obs,_ = env.reset()
             rate.sleep()
