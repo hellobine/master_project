@@ -12,7 +12,7 @@ from rotors_comm.msg import WindSpeed
 import threading
 from std_msgs.msg import Bool
 import random
-
+# keep a version: add wind speed and Eight-figure trajectory
 class QuadrotorEnv(gym.Env):
     def __init__(self, namespace="drone"):
         super(QuadrotorEnv, self).__init__()
