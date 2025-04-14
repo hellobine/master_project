@@ -11,6 +11,7 @@ from gazebo_msgs.msg import ModelState
 from rotors_comm.msg import WindSpeed
 import threading
 from std_msgs.msg import Bool
+from visualization_msgs.msg import Marker
 import random
 # keep a version: add wind speed and Eight-figure trajectory
 class QuadrotorEnv(gym.Env):
@@ -31,8 +32,8 @@ class QuadrotorEnv(gym.Env):
         self.state_dim = 22  # [px, py, pz, qx, qy, qz, qw, vx, vy, vz, ang_x, ang_y, ang_z]
         self.action_dim = 4  # [thrust, ωx, ωy, ωz]
         
-        self.max_position_error = 5.0  # 米
-        self.max_velocity_error = 8.0  # 米
+        self.max_position_error = 3.0  # 米
+        self.max_velocity_error = 5.0  # 米
 
         
         self.observation_space = spaces.Box(
@@ -103,7 +104,8 @@ class QuadrotorEnv(gym.Env):
         self.cmd_pub = rospy.Publisher(f'/{self.namespace}/control_command', ControlCommand, queue_size=1)
         self.arm_pub = rospy.Publisher(f'/{self.namespace}/bridge/arm', Bool, queue_size=1)
         self.windspeed_pub = rospy.Publisher(f'/{self.namespace}/wind_speed', WindSpeed, queue_size=1)
-       
+        self.desired_state_marker_pub = rospy.Publisher(f'/{self.namespace}/desired_state_marker', Marker, queue_size=1)
+        
 
         # env parm
         self.current_state = np.zeros(self.state_dim, dtype=np.float32)
@@ -121,9 +123,9 @@ class QuadrotorEnv(gym.Env):
         self.prev_rel_pos = None  # 上一步的相对位置
 
         # reward weight
-        self.s_target = 1
+        self.s_target = 0.5
         self.s_pos = 1
-        self.s_smooth = -0.4 #-0.05
+        self.s_smooth = 0 #-0.4 #-0.05
         self.s_yaw = 0.01
         self.s_angular =  -0.01
         self.s_crash = -10
@@ -157,8 +159,8 @@ class QuadrotorEnv(gym.Env):
 
         
         # 轨迹周期 - velocity
-        self.T = 5.0
-        # self.T = 10.0
+        # self.T = 5.0
+        self.T = 10.0
         # self.T = 15.0
         self.timer_trajectory = rospy.Timer(rospy.Duration(0.01), self.update_desired_state)
 
@@ -228,6 +230,34 @@ class QuadrotorEnv(gym.Env):
             1.0
         ], dtype=np.float32)
         self.desired_state[0:3] = new_position
+        
+        # 创建 Marker 消息以显示 desired_state
+        marker = Marker()
+        marker.header.frame_id = "world"  # 根据你的 TF 坐标系修改
+        marker.header.stamp = rospy.Time.now()
+        marker.ns = "desired_state"
+        marker.id = 0
+        marker.type = Marker.SPHERE  # 这里使用球体来表示 desired_state 点
+        marker.action = Marker.ADD
+        marker.pose.position.x = new_position[0]
+        marker.pose.position.y = new_position[1]
+        marker.pose.position.z = new_position[2]
+        marker.pose.orientation.x = 0.0
+        marker.pose.orientation.y = 0.0
+        marker.pose.orientation.z = 0.0
+        marker.pose.orientation.w = 1.0
+        # 设置 Marker 的大小（可以根据实际需要调整）
+        marker.scale.x = 0.2
+        marker.scale.y = 0.2
+        marker.scale.z = 0.2
+        # 设置颜色（此处设为绿色，透明度 1.0）
+        marker.color.a = 1.0  # 必须设置 alpha > 0 才能显示
+        marker.color.r = 0.0
+        marker.color.g = 1.0
+        marker.color.b = 0.0
+
+        # 发布 Marker 到 RViz
+        self.desired_state_marker_pub.publish(marker)
 
 
     def odom_callback(self, msg):
@@ -319,13 +349,13 @@ class QuadrotorEnv(gym.Env):
         #                                 np.random.uniform(0, 4)], dtype=np.float32)
         
 
-        reset_position = np.array([np.random.uniform(-1, 1),
-                                   np.random.uniform(-1, 1),
-                                   np.random.uniform(0.0, 2)], dtype=np.float32)
+        # reset_position = np.array([np.random.uniform(-1, 1),
+        #                            np.random.uniform(-1, 1),
+        #                            np.random.uniform(0.0, 2)], dtype=np.float32)
         
-        # reset_position = np.array([0,
-        #                         0,
-        #                         0.1], dtype=np.float32)
+        reset_position = np.array([0,
+                                0,
+                                0.1], dtype=np.float32)
 
         # 重置无人机位置
         self._reset_drone_pose(reset_position)
@@ -413,7 +443,7 @@ class QuadrotorEnv(gym.Env):
         curr_rel_dis = np.linalg.norm(current_state[0:3] - self.desired_state[0:3])/self.max_position_error
 
         # r_position = -curr_rel_dis/self.max_position_error # np.exp(-1.7 * curr_rel_dis)
-        r_position = np.exp(-1.0 * curr_rel_dis)
+        r_position = np.exp(-2.0 * curr_rel_dis)
 
 
         curr_vel_error = current_state[7:10] - self.desired_state[7:10]
@@ -467,9 +497,9 @@ class QuadrotorEnv(gym.Env):
 
         r_step = 1
         
-        total_reward = self.dt*(
+        total_reward = (
             # r_step +
-            self.s_pos * curr_rel_dis  +
+            self.s_pos * r_position  +
             self.s_target  * r_target +
             self.s_smooth * r_smooth +
             # self.s_angle_diff * angle_diff+
@@ -482,11 +512,6 @@ class QuadrotorEnv(gym.Env):
             self.s_crash * r_crash 
             # + r_energy
         )
-
-
-        # print("self.s_pos * curr_rel_dis: ", self.s_pos * curr_rel_dis , 
-        #       "\nself.s_target  * r_target: ", self.s_target  * r_target, 
-        #       "\nself.s_smooth * r_smooth: ",  self.s_smooth * r_smooth)
 
 
         rot_mat = self.quaternion_to_rot_matrix(current_state[3:7])

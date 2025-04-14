@@ -219,6 +219,14 @@ Visualization Manager:
         trajectory: true
       Queue Size: 100
       Value: true
+    - Class: rviz/Marker
+      Enabled: true
+      Marker Topic: /hummingbird0/desired_state_marker
+      Name: Marker
+      Namespaces:
+        desired_state: true
+      Queue Size: 100
+      Value: true
   Enabled: true
   Global Options:
     Background Color: 48; 48; 48

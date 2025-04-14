@@ -23,7 +23,7 @@
   <!-- Macro for the inertia of a box -->
 
   <!-- 添加禁用碰撞属性 -->
-  <xacro:property name="disable_collisions" value="true" />
+  <xacro:property name="disable_collisions" value="false" />
 
   <xacro:macro name="box_inertia" params="x y z mass">
     <inertia ixx="${0.0833333 * mass * (y*y + z*z)}" ixy="0.0" ixz="0.0"

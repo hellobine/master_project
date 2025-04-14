@@ -65,7 +65,7 @@ if __name__ == "__main__":
         trainer.train()
     else:
  
-        env = QuadrotorEnv(namespace="hummingbird0")
+        env = QuadrotorEnv(namespace="hummingbird1")
         obs, _ = env.reset()
         rate = rospy.Rate(100)
         rospy.loginfo("Entering test control loop...")
