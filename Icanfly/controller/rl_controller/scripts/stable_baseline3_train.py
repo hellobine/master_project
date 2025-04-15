@@ -49,7 +49,7 @@ class GymnasiumWrapper(gym.Wrapper):
 
 class PPOTrainer:
     def __init__(self, env, total_timesteps=1e9, batch_size=64, n_steps=128,
-                 gamma=0.99, gae_lambda=0.95, clip_range=0.2, ent_coef=0.0,
+                 gamma=0.99, gae_lambda=0.95, clip_range=0.1, ent_coef=0.0,
                  learning_rate=1e-4,):
         # 如果传入的环境未向量化，则先用 GymnasiumWrapper 包装，再用 DummyVecEnv 包装
         if not isinstance(env, VecEnv):
@@ -64,13 +64,17 @@ class PPOTrainer:
             policy="MlpPolicy",
             env=self.env,
             # 可以根据需要调整策略网络结构
-            policy_kwargs={"net_arch": dict(pi=[128, 128], vf=[128, 128])},
+            policy_kwargs={"net_arch": dict(pi=[128, 128], vf=[128, 128])
+                           ,
+                           "optimizer_kwargs": {"weight_decay": 1e-5 }
+                           
+                           },
             # learning_rate=learning_rate,
             n_steps=n_steps,
             batch_size=batch_size,
             # gamma=gamma,
             # gae_lambda=gae_lambda,
-            # clip_range=clip_range,
+            clip_range=clip_range,
             # ent_coef=ent_coef,
             verbose=1,
             seed=42,

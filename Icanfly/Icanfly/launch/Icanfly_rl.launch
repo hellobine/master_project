@@ -4,7 +4,7 @@
   <!-- <arg name="quad_name" default="hummingbird1"/> -->
   <arg name="world_name" value="$(find rotors_gazebo)/worlds/empty.world"/>
   <arg name="paused" value="false"/>
-  <arg name="gui" value="false"/>
+  <arg name="gui" value="true"/>
   <arg name="use_ground_truth"  value="false"/>
 
   <arg name="custom_models" default=""/>

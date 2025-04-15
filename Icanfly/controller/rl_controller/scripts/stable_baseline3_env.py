@@ -32,8 +32,8 @@ class QuadrotorEnv(gym.Env):
         self.state_dim = 22  # [px, py, pz, qx, qy, qz, qw, vx, vy, vz, ang_x, ang_y, ang_z]
         self.action_dim = 4  # [thrust, ωx, ωy, ωz]
         
-        self.max_position_error = 3.0  # 米
-        self.max_velocity_error = 5.0  # 米
+        self.max_position_error = 2.0  # 米
+        self.max_velocity_error = 6.0  # 米
 
         
         self.observation_space = spaces.Box(
@@ -124,7 +124,7 @@ class QuadrotorEnv(gym.Env):
 
         # reward weight
         self.s_target = 0.5
-        self.s_pos = 1
+        self.s_pos = 5
         self.s_smooth = 0 #-0.4 #-0.05
         self.s_yaw = 0.01
         self.s_angular =  -0.01
@@ -229,7 +229,7 @@ class QuadrotorEnv(gym.Env):
             np.sin(4 * np.pi * t / self.T) / 2,
             1.0
         ], dtype=np.float32)
-        self.desired_state[0:3] = new_position
+        # self.desired_state[0:3] = new_position
         
         # 创建 Marker 消息以显示 desired_state
         marker = Marker()
@@ -330,18 +330,18 @@ class QuadrotorEnv(gym.Env):
         self.prev_action_ = [0, 0, 0, 0]
 
         # 重新设定 desired_state 的位置（例如：x,y 在[-1,1]随机，z 固定为3）
-        # new_desired_position = np.array([np.random.uniform(-2, 2),
-        #                                 np.random.uniform(-2, 2),
-        #                                 np.random.uniform(0, 4)], dtype=np.float32)
+        new_desired_position = np.array([np.random.uniform(-1, 1),
+                                        np.random.uniform(-1, 1),
+                                    1], dtype=np.float32)
         
         
-        # new_desired_position = np.array([0,
-        #                                 0,
-        #                                 2.5], dtype=np.float32)
+        new_desired_position = np.array([0.5,
+                                        0.5,
+                                        1], dtype=np.float32)
 
         
         # 更新 desired_state
-        # self.desired_state[0:3] = new_desired_position
+        self.desired_state[0:3] = new_desired_position
 
         # 计算 reset 时的起始位置，设为 desired_state 正下方 1 米（根据实际需求调整）
         # reset_position = np.array([np.random.uniform(-2, 2),
@@ -349,13 +349,13 @@ class QuadrotorEnv(gym.Env):
         #                                 np.random.uniform(0, 4)], dtype=np.float32)
         
 
-        # reset_position = np.array([np.random.uniform(-1, 1),
-        #                            np.random.uniform(-1, 1),
-        #                            np.random.uniform(0.0, 2)], dtype=np.float32)
+        reset_position = np.array([np.random.uniform(-1, 1),
+                                   np.random.uniform(-1, 1),
+                                   1], dtype=np.float32)
         
-        reset_position = np.array([0,
-                                0,
-                                0.1], dtype=np.float32)
+        # reset_position = np.array([0,
+        #                         0,
+        #                         1], dtype=np.float32)
 
         # 重置无人机位置
         self._reset_drone_pose(reset_position)
@@ -436,14 +436,14 @@ class QuadrotorEnv(gym.Env):
         curr_dist = np.linalg.norm(self.desired_state[0:3] - curr_pos)
         r_progress_dis = prev_dist - curr_dist
 
-        r_target = np.tanh(30*r_progress_dis)
+        # r_target = np.tanh(30*r_progress_dis)
         # print("r_target: ", r_target)
 
         curr_rel_pos = current_state[0:3] - self.desired_state[0:3] 
-        curr_rel_dis = np.linalg.norm(current_state[0:3] - self.desired_state[0:3])/self.max_position_error
+        curr_rel_dis = np.clip(np.linalg.norm(current_state[0:3] - self.desired_state[0:3])/self.max_position_error,0,1)
 
         # r_position = -curr_rel_dis/self.max_position_error # np.exp(-1.7 * curr_rel_dis)
-        r_position = np.exp(-2.0 * curr_rel_dis)
+        r_position = np.exp(-1.0 * curr_rel_dis)
 
 
         curr_vel_error = current_state[7:10] - self.desired_state[7:10]
@@ -499,9 +499,9 @@ class QuadrotorEnv(gym.Env):
         
         total_reward = (
             # r_step +
-            self.s_pos * r_position  +
-            self.s_target  * r_target +
-            self.s_smooth * r_smooth +
+            self.s_pos * r_position  
+            # self.s_target  * r_target +
+            # self.s_smooth * r_smooth +
             # self.s_angle_diff * angle_diff+
             # self.s_smooth * r_smooth +
             # self.s_angle_diff * angle_diff +
@@ -509,7 +509,7 @@ class QuadrotorEnv(gym.Env):
             # self.s_vel * r_velocity
             # self.s_yaw * r_yaw +
             # self.s_angular * r_angular +
-            self.s_crash * r_crash 
+            # self.s_crash * r_crash 
             # + r_energy
         )
 
@@ -563,18 +563,18 @@ class QuadrotorEnv(gym.Env):
 
     def _check_done(self, curr_state):
         pos_error = np.linalg.norm(curr_state[0:3] - self.desired_state[0:3])
-        if pos_error > self.max_position_error or curr_state[2]<0:
+        if pos_error > self.max_position_error or curr_state[2]<0.1:
             return True
         
-        qw = curr_state[3]
-        qx = curr_state[4]
-        qy = curr_state[5]
-        qz = curr_state[6]
-        roll = np.arctan2(2 * (qw * qx + qy * qz), 1 - 2 * (qx * qx + qy * qy))
-        if np.abs(roll) > 1.8:
-            return True
+        # qw = curr_state[3]
+        # qx = curr_state[4]
+        # qy = curr_state[5]
+        # qz = curr_state[6]
+        # roll = np.arctan2(2 * (qw * qx + qy * qz), 1 - 2 * (qx * qx + qy * qy))
+        # if np.abs(roll) > 1.8:
+        #     return True
 
-        if np.linalg.norm(curr_state[7:10]) > self.max_velocity_error: 
+        if np.linalg.norm(curr_state[7:10]) > self.max_velocity_error-0.5: 
             return True
         
         return False
