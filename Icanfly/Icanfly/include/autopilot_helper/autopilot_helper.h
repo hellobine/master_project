@@ -100,7 +100,8 @@ class AutoPilotHelper {
     double average_speed,
     double sampling_frequency);
   void generateCurveTrajectory(quadrotor_common::Trajectory &traj_msg);
-
+  void generateEightFigureTrajectory(quadrotor_common::Trajectory &traj_msg);
+  
  private:
   void autopilotFeedbackCallback(
       const quadrotor_msgs::AutopilotFeedback::ConstPtr& msg);

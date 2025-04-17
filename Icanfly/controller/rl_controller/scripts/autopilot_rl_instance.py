@@ -38,7 +38,7 @@ def make_env(rank, base_namespace="hummingbird"):
 if __name__ == "__main__":
     rospy.init_node('quadrotor_rl_node', anonymous=True)
     
-    train_flag = False
+    train_flag = True
     num_envs = 10   
     env_fns = [make_env(i) for i in range(num_envs)]
     vec_env = SubprocVecEnv(env_fns)
@@ -46,8 +46,8 @@ if __name__ == "__main__":
     trainer = PPOTrainer(
         env=vec_env,
         total_timesteps=1_000_000_00,
-        # batch_size= 128*num_envs,#256
-        n_steps=128 #256
+        batch_size= 516*num_envs, #256
+        n_steps=516 #256
     )
     
     checkpoint_path = get_latest_checkpoint(checkpoints_file_dir)
@@ -65,7 +65,7 @@ if __name__ == "__main__":
         trainer.train()
     else:
  
-        env = QuadrotorEnv(namespace="hummingbird3")
+        env = QuadrotorEnv(namespace="hummingbird0")
         obs, _ = env.reset()
         rate = rospy.Rate(100)
         rospy.loginfo("Entering test control loop...")
@@ -73,8 +73,8 @@ if __name__ == "__main__":
         while not rospy.is_shutdown():
             action, _ = trainer.model.predict(obs, deterministic=True)
             obs, reward, terminated, truncated, info = env.step(action)
-            # print("reward: ", reward)
-            # if truncated:
-            #     rospy.loginfo("Episode finished, resetting environment.")
-            #     obs,_ = env.reset()
+            print("reward: ", reward)
+            if truncated:
+                rospy.loginfo("Episode finished, resetting environment.")
+                obs,_ = env.reset()
             rate.sleep()

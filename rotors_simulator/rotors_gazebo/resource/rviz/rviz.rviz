@@ -11,6 +11,8 @@ Panels:
         - /Odometry1
         - /Path1
         - /Path1/Offset1
+        - /Marker3
+        - /Marker3/Status1
       Splitter Ratio: 0.5
     Tree Height: 1245
   - Class: rviz/Selection
@@ -212,16 +214,32 @@ Visualization Manager:
       Unreliable: false
       Value: true
     - Class: rviz/Marker
-      Enabled: true
+      Enabled: false
       Marker Topic: /global_trajectory
       Name: Marker
       Namespaces:
-        trajectory: true
+        {}
+      Queue Size: 100
+      Value: false
+    - Class: rviz/Marker
+      Enabled: true
+      Marker Topic: /hummingbird0/desired_state_marker
+      Name: Marker
+      Namespaces:
+        desired_state: true
+      Queue Size: 1
+      Value: true
+    - Class: rviz/Marker
+      Enabled: true
+      Marker Topic: /hummingbird1/desired_state_marker
+      Name: Marker
+      Namespaces:
+        desired_state: true
       Queue Size: 100
       Value: true
     - Class: rviz/Marker
       Enabled: true
-      Marker Topic: /hummingbird0/desired_state_marker
+      Marker Topic: /hummingbird4/desired_state_marker
       Name: Marker
       Namespaces:
         desired_state: true
@@ -255,7 +273,7 @@ Visualization Manager:
   Views:
     Current:
       Class: rviz/Orbit
-      Distance: 22.192747116088867
+      Distance: 8.914849281311035
       Enable Stereo Rendering:
         Stereo Eye Separation: 0.05999999865889549
         Stereo Focal Distance: 1
@@ -271,9 +289,9 @@ Visualization Manager:
       Invert Z Axis: false
       Name: Current View
       Near Clip Distance: 0.009999999776482582
-      Pitch: 0.7997970581054688
+      Pitch: 1.2497966289520264
       Target Frame: <Fixed Frame>
-      Yaw: 2.444878578186035
+      Yaw: 2.0798776149749756
     Saved: ~
 Window Geometry:
   Displays:

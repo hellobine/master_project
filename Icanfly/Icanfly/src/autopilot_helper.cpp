@@ -381,14 +381,11 @@ void AutoPilotHelper::addForwardHeading(quadrotor_common::Trajectory* trajectory
   }
 }
 
-
 void AutoPilotHelper::generateEightTrajectory(quadrotor_common::Trajectory &traj_msg) {
-
-
   // 2. 轨迹参数设置
-  double T = 0.1;                // 每段轨迹持续时间（秒）
-  int num_loops = 5;            // 总共 5 圈
-  int num_points_per_loop = 100; // 每圈 100 个 waypoint
+  double T = 1;                // 每段轨迹持续时间（秒）
+  int num_loops = 1;             // 总共 5 圈
+  int num_points_per_loop = 50; // 每圈 100 个 waypoint
   int total_waypoints = num_loops * num_points_per_loop;
   Vec3 gravity(0, 0, -9.81);       // 重力加速度
 
@@ -396,12 +393,13 @@ void AutoPilotHelper::generateEightTrajectory(quadrotor_common::Trajectory &traj
   std::vector<Vec3> waypoints;
   waypoints.reserve(total_waypoints);
   for (int i = 0; i < total_waypoints; ++i) {
-    double t = (double)i / num_points_per_loop * 2 * M_PI;
-    double x = 3 * cos(t) - 3;
-    double y = sin(t);
-    double z = 3 * sin(2 * t) / 2 + 4;
+    double t = (double)i / num_points_per_loop * M_PI;
+    double x = cos(2 * t);
+    double y = sin(4 * t);
+    double z = 1;
     waypoints.push_back(Vec3(x, y, z));
   }
+  waypoints.push_back(Vec3(1, 0, 1));
 
   // 4. 初始化轨迹消息
   traj_msg.timestamp = ros::Time::now();
@@ -417,13 +415,27 @@ void AutoPilotHelper::generateEightTrajectory(quadrotor_common::Trajectory &traj
   // 每段轨迹采样点数量（可调整）
   int num_samples_per_segment = 10;
 
-  // 6. 对每段 waypoint（从 pos0 到下一个 waypoint）生成 mini-jerk 轨迹段，并采样存储中间点
+  // 6. 对每段 waypoint 生成 mini-jerk 轨迹段
+  // 为了整体连续平滑，我们在每个 waypoint 计算一个期望速度（利用有限差分）：
   for (size_t i = 1; i < waypoints.size(); i++) {
     Vec3 posf = waypoints[i];
-    Vec3 velf(0, 0, 0);
+    
+    // 计算目标速度
+    Vec3 velf;
+    if (i == 1) {
+      // 第一个过渡段，用前向差分
+      velf = (waypoints[1] - waypoints[0]).operator/(T);
+    } else if (i == waypoints.size() - 1) {
+      // 最后一个点，用后向差分
+      velf = (waypoints[i] - waypoints[i-1]).operator/(T);
+    } else {
+      // 中间点用中央差分
+      velf = (waypoints[i+1] - waypoints[i-1]).operator/(2.0 * T);
+    }
+    // 这里可以根据需要调整期望加速度，此处暂设为零
     Vec3 accf(0, 0, 0);
 
-
+    // 创建并生成该段轨迹
     RapidTrajectoryGenerator traj_segment(pos0, vel0, acc0, gravity);
     traj_segment.SetGoalPosition(posf);
     traj_segment.SetGoalVelocity(velf);
@@ -433,9 +445,8 @@ void AutoPilotHelper::generateEightTrajectory(quadrotor_common::Trajectory &traj
     // 对该轨迹段按固定时间间隔采样
     for (int j = 0; j <= num_samples_per_segment; j++) {
       double t_sample = T * j / double(num_samples_per_segment);
-
-      Vec3 pos_sample = traj_segment.GetPosition(t_sample);  // 请确保 GetPosition 接口已实现
-      Vec3 vel_sample  = traj_segment.GetVelocity(t_sample);
+      Vec3 pos_sample = traj_segment.GetPosition(t_sample);
+      Vec3 vel_sample = traj_segment.GetVelocity(t_sample);
 
       quadrotor_common::TrajectoryPoint point;
       point.time_from_start = ros::Duration(cumulative_time + t_sample);
@@ -453,13 +464,12 @@ void AutoPilotHelper::generateEightTrajectory(quadrotor_common::Trajectory &traj
       rviz_point.x = pos_sample[0];
       rviz_point.y = pos_sample[1];
       rviz_point.z = pos_sample[2];
-
       marker.points.push_back(rviz_point);
 
       // 将轨迹点添加到轨迹消息中
       traj_msg.points.push_back(point);
     }
-    // 更新累计时间，并将当前段终点作为下一段起点
+    // 更新累计时间，并将当前段终点的状态作为下一段的起始状态
     cumulative_time += T;
     pos0 = posf;
     vel0 = velf;
@@ -467,8 +477,6 @@ void AutoPilotHelper::generateEightTrajectory(quadrotor_common::Trajectory &traj
   }
 
   trajectory_generation_helper::heading::addForwardHeading(&traj_msg);
-
-  // 发布轨迹到 RViz
   marker_pub.publish(marker);
 }
 
@@ -691,5 +699,85 @@ void AutoPilotHelper::generateCurveTrajectory(quadrotor_common::Trajectory &traj
   // 发布轨迹到 RViz
   marker_pub.publish(marker);
 }
+
+
+//using mini-snap
+void AutoPilotHelper::generateEightFigureTrajectory(quadrotor_common::Trajectory &traj_msg) {
+
+  MiniSnapTrajectoryGeneratorTool miniSnapTrajectoryGenerator;
+  int loop_num=5;
+
+  // //state of start point
+  miniSnapTrajectoryGenerator.start_position(0) = 0;
+  miniSnapTrajectoryGenerator.start_position(1) = 0;
+  miniSnapTrajectoryGenerator.start_position(2) = 1;
+
+  double T = 10;
+  int sample_count = 10;   // 50个采样点
+  vector<Vector3d> wp_list;
+  for (int i = 0; i < sample_count; i++) {
+    // 计算当前采样点对应的时间 t
+    double t = T * i / (sample_count - 1);
+    
+    // 根据公式计算各坐标分量
+    double x = std::cos(2 * M_PI * t / T);
+    double y = std::sin(4 * M_PI * t / T) / 2.0;
+    double z = 1.0;
+    
+    Eigen::Vector3d pt(x, y, z);
+    wp_list.push_back(pt);
+  }
+  Eigen::Vector3d end_pt(0, 0, 1);
+  wp_list.push_back(end_pt);
+
+  
+  
+
+
+  MatrixXd waypoints(wp_list.size() + 1, 3);
+  waypoints.row(0) = miniSnapTrajectoryGenerator.start_position;
+
+  for (int k = 0; k < (int) wp_list.size(); k++)
+      waypoints.row(k + 1) = wp_list[k];
+
+  // traj_msg = miniSnapTrajectoryGenerator.TrajGeneration(waypoints);
+  // trajectory_generation_helper::heading::addForwardHeading(&traj_msg);
+
+  // 生成基础轨迹（单圈）
+  quadrotor_common::Trajectory base_traj = 
+      miniSnapTrajectoryGenerator.TrajGeneration(waypoints);
+
+  // 复制并扩展轨迹5次
+  traj_msg.points.clear();
+  const ros::Duration cycle_duration = 
+      base_traj.points.back().time_from_start;
+  
+  for (int i = 0; i < loop_num; i++) {
+    for (const auto& pt : base_traj.points) {
+      quadrotor_common::TrajectoryPoint new_pt = pt;
+      // 延长时间戳
+      new_pt.time_from_start += cycle_duration * i;
+      traj_msg.points.push_back(new_pt);
+    }
+  }
+
+  // 更新轨迹元数据
+  traj_msg.timestamp = ros::Time::now();
+  traj_msg.trajectory_type = 
+      quadrotor_common::Trajectory::TrajectoryType::SNAP;
+  trajectory_generation_helper::heading::addForwardHeading(&traj_msg);
+
+  for (const auto &point : traj_msg.points) {
+    // 添加到 RViz Marker 中显示
+    geometry_msgs::Point rviz_point;
+    rviz_point.x = point.position.x();
+    rviz_point.y = point.position.y();
+    rviz_point.z = point.position.z();
+    marker.points.push_back(rviz_point);
+  }
+  // 发布轨迹到 RViz
+  marker_pub.publish(marker);
+}
+
 
 }  // namespace autopilot_helper

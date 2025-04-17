@@ -34,14 +34,14 @@ int main(int argc, char** argv) {
   // msg.velocity.z = 100.0;
 
   
-
   autopilot_helper::AutoPilotHelper autopilot_helper(nh, private_nh);
 
   quadrotor_common::Trajectory traj_msg;
 
-  // autopilot_helper.generateEightTrajectory(traj_msg);
+  autopilot_helper.generateEightTrajectory(traj_msg);
   // autopilot_helper.generateCircleTrajectory(traj_msg);
-  autopilot_helper.generateCurveTrajectory(traj_msg);
+  // autopilot_helper.generateEightFigureTrajectory(traj_msg);
+  
 
 
   size_t point_index = 0;
