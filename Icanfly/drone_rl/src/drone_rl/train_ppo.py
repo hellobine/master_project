@@ -1,6 +1,6 @@
 import rospy
 from stable_baselines3 import PPO
-from stable_baselines3.common.env_util import make_vec_env
+from stable_baselines3.commons.env_util import make_vec_env
 from drone_rl.env import UAVEnv
 
 def main():

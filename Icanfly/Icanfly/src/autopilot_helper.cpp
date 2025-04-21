@@ -383,9 +383,9 @@ void AutoPilotHelper::addForwardHeading(quadrotor_common::Trajectory* trajectory
 
 void AutoPilotHelper::generateEightTrajectory(quadrotor_common::Trajectory &traj_msg) {
   // 2. 轨迹参数设置
-  double T = 1;                // 每段轨迹持续时间（秒）
+  double T = 0.1;                // 每段轨迹持续时间（秒）
   int num_loops = 1;             // 总共 5 圈
-  int num_points_per_loop = 50; // 每圈 100 个 waypoint
+  int num_points_per_loop = 35; // 每圈 100 个 waypoint
   int total_waypoints = num_loops * num_points_per_loop;
   Vec3 gravity(0, 0, -9.81);       // 重力加速度
 
