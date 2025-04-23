@@ -282,6 +282,23 @@
 
 
 
+import warnings
+from typing import Any, ClassVar, Dict, Optional, Type, TypeVar, Union
+import numpy as np
+import torch as th
+from gymnasium import spaces
+from torch.nn import functional as F
+
+
+
+from stable_baselines3.commons.buffers import RolloutBuffer
+from stable_baselines3.commons.on_policy_algorithm import OnPolicyAlgorithm
+from stable_baselines3.commons.policies import ActorCriticCnnPolicy, ActorCriticPolicy, BasePolicy, MultiInputActorCriticPolicy
+from stable_baselines3.commons.type_aliases import GymEnv, MaybeCallback, Schedule
+from stable_baselines3.commons.utils import explained_variance, get_schedule_fn
+
+
+
 import torch
 from torch import nn
 from torch.nn import functional as F
@@ -344,21 +361,6 @@ class EWC:
 
 # ======================== EWC + PPO ===================================
 
-
-
-import warnings
-from typing import Any, ClassVar, Dict, Optional, Type, TypeVar, Union
-import numpy as np
-import torch as th
-from gymnasium import spaces
-from torch.nn import functional as F
-
-from stable_baselines3.commons.buffers import RolloutBuffer
-from stable_baselines3.commons.on_policy_algorithm import OnPolicyAlgorithm
-from stable_baselines3.commons.policies import ActorCriticCnnPolicy, ActorCriticPolicy, BasePolicy, MultiInputActorCriticPolicy
-from stable_baselines3.commons.type_aliases import GymEnv, MaybeCallback, Schedule
-from stable_baselines3.commons.utils import explained_variance, get_schedule_fn
-
 SelfPPO = TypeVar("SelfPPO", bound="PPO")
 
 
@@ -373,7 +375,7 @@ class PPO(OnPolicyAlgorithm):
         self,
         policy: Union[str, Type[ActorCriticPolicy]],
         env: Union[GymEnv, str],
-        learning_rate: Union[float, Schedule] = 3e-4,
+        learning_rate: Union[float, Schedule] = 1e-4,
         n_steps: int = 2048,
         batch_size: int = 64,
         n_epochs: int = 10,

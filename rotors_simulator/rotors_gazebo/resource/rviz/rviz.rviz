@@ -11,10 +11,26 @@ Panels:
         - /Odometry1
         - /Path1
         - /Path1/Offset1
+        - /PointStamped3
+        - /PointStamped4
+        - /PointStamped5
+        - /PointStamped6
+        - /PointStamped7
         - /PointStamped8
-        - /Marker3
+        - /PointStamped9
+        - /PointStamped10
+        - /PointStamped11
+        - /Marker2
+        - /Marker2/Status1
+        - /Marker4
         - /Marker5
         - /Marker6
+        - /Marker6/Namespaces1
+        - /Marker7
+        - /Marker8
+        - /Marker9
+        - /Marker10
+        - /Marker11
       Splitter Ratio: 0.5
     Tree Height: 1245
   - Class: rviz/Selection
@@ -212,32 +228,49 @@ Visualization Manager:
       Name: PointStamped
       Queue Size: 10
       Radius: 0.20000000298023224
+      Topic: /hummingbird6/ground_truth/position
+      Unreliable: false
+      Value: true
+    - Alpha: 1
+      Class: rviz/PointStamped
+      Color: 204; 41; 204
+      Enabled: true
+      History Length: 1
+      Name: PointStamped
+      Queue Size: 10
+      Radius: 0.20000000298023224
       Topic: /hummingbird7/ground_truth/position
       Unreliable: false
       Value: true
-    - Class: rviz/Marker
-      Enabled: false
-      Marker Topic: /global_trajectory
-      Name: Marker
-      Namespaces:
-        {}
-      Queue Size: 100
-      Value: false
+    - Alpha: 1
+      Class: rviz/PointStamped
+      Color: 204; 41; 204
+      Enabled: true
+      History Length: 1
+      Name: PointStamped
+      Queue Size: 10
+      Radius: 0.20000000298023224
+      Topic: /hummingbird8/ground_truth/position
+      Unreliable: false
+      Value: true
+    - Alpha: 1
+      Class: rviz/PointStamped
+      Color: 204; 41; 204
+      Enabled: true
+      History Length: 1
+      Name: PointStamped
+      Queue Size: 10
+      Radius: 0.20000000298023224
+      Topic: /hummingbird9/ground_truth/position
+      Unreliable: false
+      Value: true
     - Class: rviz/Marker
       Enabled: true
-      Marker Topic: /hummingbird2/desired_point_marker
+      Marker Topic: /hummingbird0/desired_point_marker
       Name: Marker
       Namespaces:
         "": true
       Queue Size: 1
-      Value: true
-    - Class: rviz/Marker
-      Enabled: true
-      Marker Topic: /hummingbird1/desired_state_marker
-      Name: Marker
-      Namespaces:
-        {}
-      Queue Size: 100
       Value: true
     - Class: rviz/Marker
       Enabled: true
@@ -249,7 +282,15 @@ Visualization Manager:
       Value: true
     - Class: rviz/Marker
       Enabled: true
-      Marker Topic: /hummingbird0/desired_point_marker
+      Marker Topic: /hummingbird2/desired_point_marker
+      Name: Marker
+      Namespaces:
+        "": true
+      Queue Size: 1
+      Value: true
+    - Class: rviz/Marker
+      Enabled: true
+      Marker Topic: /hummingbird3/desired_point_marker
       Name: Marker
       Namespaces:
         "": true
@@ -257,10 +298,50 @@ Visualization Manager:
       Value: true
     - Class: rviz/Marker
       Enabled: true
-      Marker Topic: /hummingbird5/desired_state_marker
+      Marker Topic: /hummingbird4/desired_point_marker
       Name: Marker
       Namespaces:
-        {}
+        "": true
+      Queue Size: 100
+      Value: true
+    - Class: rviz/Marker
+      Enabled: true
+      Marker Topic: /hummingbird5/desired_point_marker
+      Name: Marker
+      Namespaces:
+        "": true
+      Queue Size: 100
+      Value: true
+    - Class: rviz/Marker
+      Enabled: true
+      Marker Topic: /hummingbird6/desired_point_marker
+      Name: Marker
+      Namespaces:
+        "": true
+      Queue Size: 100
+      Value: true
+    - Class: rviz/Marker
+      Enabled: true
+      Marker Topic: /hummingbird7/desired_point_marker
+      Name: Marker
+      Namespaces:
+        "": true
+      Queue Size: 100
+      Value: true
+    - Class: rviz/Marker
+      Enabled: true
+      Marker Topic: /hummingbird8/desired_point_marker
+      Name: Marker
+      Namespaces:
+        "": true
+      Queue Size: 100
+      Value: true
+    - Class: rviz/Marker
+      Enabled: true
+      Marker Topic: /hummingbird9/desired_point_marker
+      Name: Marker
+      Namespaces:
+        "": true
       Queue Size: 100
       Value: true
   Enabled: true
@@ -291,7 +372,7 @@ Visualization Manager:
   Views:
     Current:
       Class: rviz/Orbit
-      Distance: 27.68817138671875
+      Distance: 43.567874908447266
       Enable Stereo Rendering:
         Stereo Eye Separation: 0.05999999865889549
         Stereo Focal Distance: 1
@@ -307,9 +388,9 @@ Visualization Manager:
       Invert Z Axis: false
       Name: Current View
       Near Clip Distance: 0.009999999776482582
-      Pitch: 1.189796805381775
+      Pitch: 0.8147971630096436
       Target Frame: <Fixed Frame>
-      Yaw: 1.2898789644241333
+      Yaw: 1.9998782873153687
     Saved: ~
 Window Geometry:
   Displays:

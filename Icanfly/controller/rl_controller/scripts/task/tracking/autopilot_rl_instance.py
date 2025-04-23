@@ -78,7 +78,7 @@ from stable_baselines3.commons.vec_env import SubprocVecEnv
 # ⬇️ 路径准备（与训练脚本保持一致的日期目录）
 # ---------------------------------------------------------------------------
 current_date = datetime.datetime.now().strftime("%Y%m%d")
-file_dir = f"/home/hello/catkin_ws_rotors/rl_trajectory_run/result/{current_date}"
+file_dir = f"/home/hello/catkin_ws_rotors/rl_trajectory_run/result/task/tracking/result/{current_date}"
 checkpoints_file_dir = os.path.join(file_dir, "sb3_checkpoints")
 
 # ---------------------------------------------------------------------------
@@ -117,17 +117,19 @@ def make_env(rank: int, base_namespace: str = "hummingbird"):
 
 
 if __name__ == "__main__":
+    rospy.set_param('use_sim_time', True)
     rospy.init_node("quadrotor_rl_node", anonymous=True)
 
-    num_envs = 5  # 改成 >1 可并行
+    num_envs = 10  # 改成 >1 可并行
     vec_env = SubprocVecEnv([make_env(i) for i in range(num_envs)])
 
     # ----------------- 创建 Trainer（确保超参数与训练时相同） -----------------
     trainer = PPOTrainer(
         env=vec_env,
-        total_timesteps=100_000_000_00,  # 后续追加 timesteps
-        batch_size=1000 * num_envs,
-        n_steps=1000,
+        total_timesteps=100_000_000_0,  # 后续追加 timesteps
+        batch_size= num_envs*256,  # 256
+        n_steps=256,
+        device="cuda:0",  # 或 "cpu"
     )
 
     # ----------------- 尝试加载最新权重 -----------------
