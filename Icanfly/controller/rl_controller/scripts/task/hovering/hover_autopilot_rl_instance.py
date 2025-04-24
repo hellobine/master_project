@@ -10,7 +10,7 @@ import os
 import datetime
 
 current_date = datetime.datetime.now().strftime("%Y%m%d")
-file_dir = f"/home/hello/catkin_ws_rotors/src/Icanfly/controller/rl_controller/scripts/task/tracking/result/{current_date}/"
+file_dir = f"/home/hello/catkin_ws_rotors/rl_trajectory_run/result/task/hovering/result/{current_date}"
 checkpoints_file_dir = file_dir+"/sb3_checkpoints/"
 
 def get_latest_checkpoint(checkpoint_dir):
@@ -39,14 +39,14 @@ if __name__ == "__main__":
     rospy.init_node('quadrotor_rl_node', anonymous=True)
     
     train_flag = True
-    num_envs = 5   
+    num_envs = 10   
     env_fns = [make_env(i) for i in range(num_envs)]
     vec_env = SubprocVecEnv(env_fns)
     
     trainer = PPOTrainer(
         env=vec_env,
         total_timesteps=1_000_000_00,
-        # batch_size= 128*num_envs,#256
+        batch_size= 128*num_envs,#256
         n_steps=128 #256
     )
     

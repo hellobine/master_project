@@ -15,7 +15,7 @@ from stable_baselines3.commons.callbacks import BaseCallback
 from stable_baselines3.commons.vec_env import DummyVecEnv, VecEnv
  
 current_date = datetime.datetime.now().strftime("%Y%m%d")
-file_dir = f"/home/hello/catkin_ws_rotors/src/Icanfly/controller/rl_controller/scripts/task/hovering/result/{current_date}/"
+file_dir = f"/home/hello/catkin_ws_rotors/rl_trajectory_run/result/task/hovering/result/{current_date}"
 checkpoints_file_dir = file_dir+"/sb3_checkpoints/"
 tensorboard_file_dir = file_dir+"/sb3_tensorboard/"
 reward_file_dir = file_dir+"/reward/"
@@ -65,8 +65,8 @@ class PPOTrainer:
             env=self.env,
             # 可以根据需要调整策略网络结构
             policy_kwargs={"net_arch": dict(pi=[128, 128], vf=[128, 128])
-                           ,
-                           "optimizer_kwargs": {"weight_decay": 1e-5 }
+                        #    ,
+                        #    "optimizer_kwargs": {"weight_decay": 1e-5 }
                            
                            },
             # learning_rate=learning_rate,

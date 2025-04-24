@@ -749,6 +749,7 @@ import torch
 import rospy
 import threading
 import random
+from multiprocessing import Lock  # 替换 threading.Lock
 
 from gymnasium import spaces
 from geometry_msgs.msg import Vector3
@@ -807,7 +808,7 @@ class QuadrotorEnv(gym.Env):
                 self.origin_offset += 3.0 * i
 
         # ---- Episode bookkeeping -----------------------------------
-        self.max_episode_steps = 256
+        self.max_episode_steps = 516
         self.step_count = 0
         self.episode_reward = 0.0
 
@@ -868,7 +869,7 @@ class QuadrotorEnv(gym.Env):
         self.control_dt = 1.0 / self.control_hz
         self.rate = rospy.Rate(self.control_hz)
 
-        self._odom_lock = threading.Lock()
+        # self._odom_lock = Lock()  # 使用 Lock 来保护对共享资源的访问
         self.odom_sub = rospy.Subscriber(
             f"/{namespace}/ground_truth/odometry", Odometry, self._odom_cb)
 
@@ -907,7 +908,7 @@ class QuadrotorEnv(gym.Env):
 
     # -------------------------------------------------- ROS callbacks
     def _odom_cb(self, msg: Odometry):
-        with self._odom_lock:
+        # with self._odom_lock:
             pos = [msg.pose.pose.position.x, msg.pose.pose.position.y, msg.pose.pose.position.z]
             ori = [msg.pose.pose.orientation.w, msg.pose.pose.orientation.x,
                    msg.pose.pose.orientation.y, msg.pose.pose.orientation.z]
@@ -937,8 +938,8 @@ class QuadrotorEnv(gym.Env):
    
         # print(f"Rospy.time: {rospy.Time.now().to_sec()}")
         # ----- observe --------------------------------------------
-        with self._odom_lock:
-            state = self.current_state.copy()
+        # with self._odom_lock:
+        state = self.current_state.copy()
  
         obs, reward = self._build_obs_and_reward(state, action)
  
@@ -973,8 +974,8 @@ class QuadrotorEnv(gym.Env):
         ], np.float32)
         self._reset_pose(reset_pos)
 
-        with self._odom_lock:
-            state = self.current_state.copy()
+        # with self._odom_lock:
+        state = self.current_state.copy()
         obs, _ = self._build_obs_and_reward(state, self.prev_action)
         return obs, {}
 
@@ -1006,9 +1007,9 @@ class QuadrotorEnv(gym.Env):
             m.twist.linear.x, m.twist.linear.y, m.twist.linear.z = np.random.uniform(-0.2, 0.2, 3)
             m.twist.angular.x, m.twist.angular.y, m.twist.angular.z = np.random.uniform(-0.1, 0.1, 3)
             pub.publish(m)
-            with self._odom_lock:
-                if np.linalg.norm(self.current_state[0:3] - p) < 0.1 or rospy.Time.now() - start > timeout:
-                    break
+            # with self._odom_lock:
+            if np.linalg.norm(self.current_state[0:3] - p) < 0.1 or rospy.Time.now() - start > timeout:
+                break
 
     def safe_normalize(self, q, epsilon=1e-6):
         """
@@ -1024,7 +1025,7 @@ class QuadrotorEnv(gym.Env):
 
     # ----------------------- Observation & reward ------------------
     def _build_obs_and_reward(self, state: np.ndarray, action: np.ndarray):
-        device = self.device
+        # device = self.device
         # ---------------------------------------------------------------------
         # 1.  Tensor helpers (pos / vel / rot)
         # ---------------------------------------------------------------------
@@ -1042,7 +1043,7 @@ class QuadrotorEnv(gym.Env):
         # 2.  Future waypoint errors  (K = FUTURE_STEPS).
         #     Same as Track:   rpos = (target_pos[0:K] - current_pos).flatten()
         # ---------------------------------------------------------------------
-        t_idx    = torch.arange(self.FUTURE_STEPS, device=self.device)            # 0..K‑1
+        t_idx = np.arange(self.FUTURE_STEPS)  # 0..K‑1
         t_query  = self._traj_time + (t_idx + 1) * self.control_dt           # (+1) 与 Track 对齐: 下一个物理步开始
 
         # 查询参考轨迹（向量化实现）
@@ -1097,26 +1098,26 @@ class QuadrotorEnv(gym.Env):
         reward_spin     = self.reward_spin_weight * 0.5 / (1.0 + spin_sq ** 2)
 
         # 3.3  Action regularisation ------------------------------------------
-        a_tensor        = torch.tensor(action, device=self.device)
+        # a_tensor        = torch.tensor(action, device=self.device)
 
         # --- (i) Action norm --------------------------------------------------
         w_norm = min(self.reward_action_norm_weight_init +
                         self.reward_action_norm_weight_lr * self.step_count,
                         self.reward_norm_max)
-        reward_norm = w_norm * torch.exp(-torch.norm(a_tensor))
+        reward_norm = w_norm * np.exp(-np.linalg.norm(action))
 
         # --- (ii) Action smoothness ------------------------------------------
         if self.step_count == 0:
-            reward_smooth = torch.tensor(0.0, device=self.device)
-            delta_a_norm  = torch.tensor(0.0, device=self.device)
+            reward_smooth = np.array(0.0, dtype=np.float32)
+            delta_a_norm  = np.array(0.0, dtype=np.float32)
         else:
-            delta_a       = a_tensor - torch.tensor(self.prev_action, device=self.device)
-            delta_a_norm  = torch.norm(delta_a)/5.0
+            delta_a       = action - self.prev_action
+            delta_a_norm  = np.linalg.norm(delta_a)/5.0
             # w_smooth = min(self.reward_action_smoothness_weight_init +
             #                 self.reward_action_smoothness_weight_lr * self.step_count,
             #                 self.reward_smoothness_max)
  
-            reward_smooth = torch.clamp(-0.5 * delta_a_norm, min=-1.0, max=1.0)
+            reward_smooth = np.clip(-0.5 * delta_a_norm, -1.0, 1.0)
             # print(f"reward_smooth: {reward_smooth.item():.4f}")
 
         # 3.4  Dynamics regularisation (acc / jerk / snap) --------------------

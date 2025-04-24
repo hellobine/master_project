@@ -304,7 +304,7 @@ from torch import nn
 from torch.nn import functional as F
 from torch.autograd import Variable
 from copy import deepcopy
-import threading
+# import threading
 
 
 def variable(t: torch.Tensor, use_cuda=True, **kwargs):
@@ -441,9 +441,9 @@ class PPO(OnPolicyAlgorithm):
 
         self.l2_lambda = l2_lambda
         # EWC 相关
-        self.ewc: Optional[EWC] = None
-        self._ewc_lock = threading.Lock()
-        self._ewc_thread: Optional[threading.Thread] = None
+        # self.ewc: Optional[EWC] = None
+        # self._ewc_lock = threading.Lock()
+        # self._ewc_thread: Optional[threading.Thread] = None
         self._ewc_pending = False
         self.ewc_lambda = ewc_lambda
         self.ewc_update_interval = ewc_update_interval  # 比如每多少次 train 调用重算一次
@@ -455,21 +455,21 @@ class PPO(OnPolicyAlgorithm):
         if _init_setup_model:
             self._setup_model()
 
-    def _start_ewc_thread(self, observations):
-        """后台线程函数：计算并安装新的 EWC"""
-        def worker(obs):
-            new_ewc = EWC(self.policy, obs)
-            with self._ewc_lock:
-                self.ewc = new_ewc
-                self._ewc_pending = False
+    # def _start_ewc_thread(self, observations):
+    #     """后台线程函数：计算并安装新的 EWC"""
+    #     def worker(obs):
+    #         new_ewc = EWC(self.policy, obs)
+    #         with self._ewc_lock:
+    #             self.ewc = new_ewc
+    #             self._ewc_pending = False
 
         # 如果已有线程在跑，就不再启动
-        if self._ewc_pending or (self._ewc_thread and self._ewc_thread.is_alive()):
-            return
-        self._ewc_pending = True
-        t = threading.Thread(target=worker, args=(observations,), daemon=True)
-        t.start()
-        self._ewc_thread = t
+        # if self._ewc_pending or (self._ewc_thread and self._ewc_thread.is_alive()):
+            # return
+        # self._ewc_pending = True
+        # t = threading.Thread(target=worker, args=(observations,), daemon=True)
+        # t.start()
+        # self._ewc_thread = t
 
     def set_ewc_from_observations(self, observations):
         ewc = EWC(self.policy, observations)
@@ -507,10 +507,10 @@ class PPO(OnPolicyAlgorithm):
                 
                 # Trigger asynchronous EWC update
                 self._train_step_count += 1
-                if self.ewc_lambda > 0 and self.ewc_update_interval > 0:
-                    if self._train_step_count % self.ewc_update_interval == 0:
-                        sample_obs = [obs for obs in rollout_data.observations[:min(64, len(rollout_data.observations))]]
-                        self._start_ewc_thread(sample_obs)
+                # if self.ewc_lambda > 0 and self.ewc_update_interval > 0:
+                #     if self._train_step_count % self.ewc_update_interval == 0:
+                #         sample_obs = [obs for obs in rollout_data.observations[:min(64, len(rollout_data.observations))]]
+                #         self._start_ewc_thread(sample_obs)
 
                 ### Standard PPO losses ###
                 actions = rollout_data.actions
@@ -555,9 +555,9 @@ class PPO(OnPolicyAlgorithm):
                     loss += self.l2_lambda * l2_loss
 
                 # EWC penalty
-                with self._ewc_lock:
-                    if self.ewc is not None and self.ewc_lambda > 0:
-                        loss += self.ewc_lambda * self.ewc.penalty(self.policy)
+                # with self._ewc_lock:
+                #     if self.ewc is not None and self.ewc_lambda > 0:
+                #         loss += self.ewc_lambda * self.ewc.penalty(self.policy)
 
                 with th.no_grad():
                     log_ratio = log_prob - rollout_data.old_log_prob
