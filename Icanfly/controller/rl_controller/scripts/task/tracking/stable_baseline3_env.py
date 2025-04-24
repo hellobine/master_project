@@ -1147,8 +1147,10 @@ class QuadrotorEnv(gym.Env):
  
         # 3.5  Final aggregation ----------------------------------------------
         reward_total = (
+            2 * self.step_count/self.max_episode_steps +
             self.s_angle_diff * angle_diff +
-            self.s_crash * r_crash + 
+            # self.s_crash * r_crash + # change to step_reward
+
             reward_pos +
             self.s_target  * r_target +
             # reward_pos * (reward_up + reward_spin) +

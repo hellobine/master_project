@@ -21,7 +21,6 @@ Panels:
         - /PointStamped10
         - /PointStamped11
         - /Marker2
-        - /Marker2/Status1
         - /Marker4
         - /Marker5
         - /Marker6
@@ -31,6 +30,11 @@ Panels:
         - /Marker9
         - /Marker10
         - /Marker11
+        - /Marker12
+        - /Marker15
+        - /Marker16
+        - /Marker17
+        - /Marker19
       Splitter Ratio: 0.5
     Tree Height: 1245
   - Class: rviz/Selection
@@ -269,7 +273,7 @@ Visualization Manager:
       Marker Topic: /hummingbird0/desired_point_marker
       Name: Marker
       Namespaces:
-        "": true
+        desired_state: true
       Queue Size: 1
       Value: true
     - Class: rviz/Marker
@@ -277,7 +281,7 @@ Visualization Manager:
       Marker Topic: /hummingbird1/desired_point_marker
       Name: Marker
       Namespaces:
-        "": true
+        desired_state: true
       Queue Size: 100
       Value: true
     - Class: rviz/Marker
@@ -285,7 +289,7 @@ Visualization Manager:
       Marker Topic: /hummingbird2/desired_point_marker
       Name: Marker
       Namespaces:
-        "": true
+        desired_state: true
       Queue Size: 1
       Value: true
     - Class: rviz/Marker
@@ -293,7 +297,7 @@ Visualization Manager:
       Marker Topic: /hummingbird3/desired_point_marker
       Name: Marker
       Namespaces:
-        "": true
+        desired_state: true
       Queue Size: 100
       Value: true
     - Class: rviz/Marker
@@ -301,7 +305,7 @@ Visualization Manager:
       Marker Topic: /hummingbird4/desired_point_marker
       Name: Marker
       Namespaces:
-        "": true
+        desired_state: true
       Queue Size: 100
       Value: true
     - Class: rviz/Marker
@@ -309,7 +313,7 @@ Visualization Manager:
       Marker Topic: /hummingbird5/desired_point_marker
       Name: Marker
       Namespaces:
-        "": true
+        desired_state: true
       Queue Size: 100
       Value: true
     - Class: rviz/Marker
@@ -317,7 +321,7 @@ Visualization Manager:
       Marker Topic: /hummingbird6/desired_point_marker
       Name: Marker
       Namespaces:
-        "": true
+        desired_state: true
       Queue Size: 100
       Value: true
     - Class: rviz/Marker
@@ -325,7 +329,7 @@ Visualization Manager:
       Marker Topic: /hummingbird7/desired_point_marker
       Name: Marker
       Namespaces:
-        "": true
+        desired_state: true
       Queue Size: 100
       Value: true
     - Class: rviz/Marker
@@ -333,7 +337,7 @@ Visualization Manager:
       Marker Topic: /hummingbird8/desired_point_marker
       Name: Marker
       Namespaces:
-        "": true
+        desired_state: true
       Queue Size: 100
       Value: true
     - Class: rviz/Marker
@@ -341,7 +345,71 @@ Visualization Manager:
       Marker Topic: /hummingbird9/desired_point_marker
       Name: Marker
       Namespaces:
-        "": true
+        desired_state: true
+      Queue Size: 100
+      Value: true
+    - Class: rviz/Marker
+      Enabled: true
+      Marker Topic: /hummingbird0/wind_marker
+      Name: Marker
+      Namespaces:
+        wind_arrow: true
+      Queue Size: 100
+      Value: true
+    - Class: rviz/Marker
+      Enabled: true
+      Marker Topic: /hummingbird1/wind_marker
+      Name: Marker
+      Namespaces:
+        wind_arrow: true
+      Queue Size: 100
+      Value: true
+    - Class: rviz/Marker
+      Enabled: true
+      Marker Topic: /hummingbird2/wind_marker
+      Name: Marker
+      Namespaces:
+        wind_arrow: true
+      Queue Size: 100
+      Value: true
+    - Class: rviz/Marker
+      Enabled: true
+      Marker Topic: /hummingbird3/wind_marker
+      Name: Marker
+      Namespaces:
+        wind_arrow: true
+      Queue Size: 100
+      Value: true
+    - Class: rviz/Marker
+      Enabled: true
+      Marker Topic: /hummingbird4/wind_marker
+      Name: Marker
+      Namespaces:
+        wind_arrow: true
+      Queue Size: 100
+      Value: true
+    - Class: rviz/Marker
+      Enabled: true
+      Marker Topic: /hummingbird5/wind_marker
+      Name: Marker
+      Namespaces:
+        wind_arrow: true
+      Queue Size: 100
+      Value: true
+    - Class: rviz/Marker
+      Enabled: true
+      Marker Topic: /hummingbird2/wind_marker
+      Name: Marker
+      Namespaces:
+        wind_arrow: true
+      Queue Size: 100
+      Value: true
+    - Class: rviz/Marker
+      Enabled: true
+      Marker Topic: /hummingbird6/wind_marker
+      Name: Marker
+      Namespaces:
+        wind_arrow: true
       Queue Size: 100
       Value: true
   Enabled: true
@@ -372,7 +440,7 @@ Visualization Manager:
   Views:
     Current:
       Class: rviz/Orbit
-      Distance: 43.567874908447266
+      Distance: 21.637447357177734
       Enable Stereo Rendering:
         Stereo Eye Separation: 0.05999999865889549
         Stereo Focal Distance: 1
@@ -388,9 +456,9 @@ Visualization Manager:
       Invert Z Axis: false
       Name: Current View
       Near Clip Distance: 0.009999999776482582
-      Pitch: 0.8147971630096436
+      Pitch: 0.6097976565361023
       Target Frame: <Fixed Frame>
-      Yaw: 1.9998782873153687
+      Yaw: 3.918055772781372
     Saved: ~
 Window Geometry:
   Displays:

@@ -4,6 +4,8 @@ import gymnasium as gym
 import numpy as np
 from gymnasium import spaces
 import rospy
+
+from geometry_msgs.msg import Point, Quaternion
 from geometry_msgs.msg import PoseStamped, TwistStamped, Vector3
 from nav_msgs.msg import Odometry
 from quadrotor_msgs.msg import ControlCommand
@@ -39,7 +41,7 @@ class QuadrotorEnv(gym.Env):
         self.state_dim = 22  # [px, py, pz, qx, qy, qz, qw, vx, vy, vz, ang_x, ang_y, ang_z]
         self.action_dim = 4  # [thrust, ωx, ωy, ωz]
         
-        self.max_position_error = 2.0  # 米
+        self.max_position_error = 4.0  # 米
         self.max_velocity_error = 6.0  # 米
 
         
@@ -113,6 +115,7 @@ class QuadrotorEnv(gym.Env):
         self.windspeed_pub = rospy.Publisher(f'/{self.namespace}/wind_speed', WindSpeed, queue_size=1)
         self.desired_state_marker_pub = rospy.Publisher(f'/{self.namespace}/desired_point_marker', Marker, queue_size=1)
         
+        self.marker_pub = rospy.Publisher(f'/{self.namespace}/wind_marker', Marker, queue_size=1)
 
         # env parm
         self.current_state = np.zeros(self.state_dim, dtype=np.float32)
@@ -221,6 +224,28 @@ class QuadrotorEnv(gym.Env):
             self.windspeed_pub.publish(wind_msg)
         except rospy.ROSException as e:
             rospy.logwarn(f"发布风速消息失败: {e}")
+        
+        m = Marker()
+        m.header.stamp    = wind_msg.header.stamp
+        m.header.frame_id = "world"
+        m.ns     = "wind_arrow"
+        m.id     = 0
+        m.type   = Marker.ARROW
+        m.action = Marker.ADD
+
+        # 箭头起点 (0,0,0)，你也可以放在其他位置
+        m.points = [Point(self.current_state[0],self.current_state[1],self.current_state[2]), Point(self.current_state[0]+0.5,self.current_state[1]+0.5,self.current_state[2]+0.5)]
+
+        # 箭头粗细：x 是箭头杆的直径，y 是箭头头部直径，z 不用
+        m.scale.x = 0.05
+        m.scale.y = 0.1
+
+        # 箭头颜色：这里设成半透明蓝色
+        m.color.r = 1.0   # 红
+        m.color.g = 0.0   # 取消绿
+        m.color.b = 0.0   # 取消蓝
+        m.color.a = 1.0   # 完全不透明
+        # self.marker_pub.publish(m)
 
 
 
@@ -264,7 +289,7 @@ class QuadrotorEnv(gym.Env):
         marker.color.b = 0.0
 
         # 发布 Marker 到 RViz
-        self.desired_state_marker_pub.publish(marker)
+        # self.desired_state_marker_pub.publish(marker)
 
 
     def odom_callback(self, msg):
@@ -321,7 +346,7 @@ class QuadrotorEnv(gym.Env):
             terminated = False
             truncated = True
             info = {"reward": reward, "episode": {"r": self.episode_reward, "l": self.step_count}}
-            print("info: ", info)
+            # print("info: ", info)
             # reset
             self.episode_reward = 0
             self.step_count = 0
@@ -390,34 +415,48 @@ class QuadrotorEnv(gym.Env):
     
     def _reset_drone_pose(self, reset_position):
 
-        init_orientation = np.random.uniform(-0.2, 0.2, size=4)  
-        state = ModelState()
-        state.model_name = self.namespace  # 确保命名空间匹配 Gazebo 的无人机模型
+        # init_orientation = np.random.uniform(-0.2, 0.2, size=4)  
+        # state = ModelState()
+        # state.model_name = self.namespace  # 确保命名空间匹配 Gazebo 的无人机模型
 
-        state.pose.position.x = reset_position[0]
-        state.pose.position.y = reset_position[1]
-        state.pose.position.z = reset_position[2]
+        # state.pose.position.x = reset_position[0]
+        # state.pose.position.y = reset_position[1]
+        # state.pose.position.z = reset_position[2]
 
-        state.pose.orientation.x = 0
-        state.pose.orientation.y = 0
-        state.pose.orientation.z = 0
-        state.pose.orientation.w = 1 
+        # state.pose.orientation.x = 0
+        # state.pose.orientation.y = 0
+        # state.pose.orientation.z = 0
+        # state.pose.orientation.w = 1 
 
-        init_velocity = np.random.uniform(-2, 2, size=3)  
-        init_angular_velocity = np.random.uniform(-0.2, 0.2, size=3) 
+        # init_velocity = np.random.uniform(-2, 2, size=3)  
+        # init_angular_velocity = np.random.uniform(-0.2, 0.2, size=3) 
 
 
-        state.twist.linear.x=init_velocity[0]
-        state.twist.linear.y=init_velocity[1]
-        state.twist.linear.z=init_velocity[2]
+        # state.twist.linear.x=init_velocity[0]
+        # state.twist.linear.y=init_velocity[1]
+        # state.twist.linear.z=init_velocity[2]
 
-        state.twist.angular.x=init_angular_velocity[0]
-        state.twist.angular.y=init_angular_velocity[1]
-        state.twist.angular.z=init_angular_velocity[2]
+        # state.twist.angular.x=init_angular_velocity[0]
+        # state.twist.angular.y=init_angular_velocity[1]
+        # state.twist.angular.z=init_angular_velocity[2]
 
-        pub = rospy.Publisher('/gazebo/set_model_state', ModelState, queue_size=1)
-        pub.publish(state)
-        rospy.sleep(0.05)
+        # pub = rospy.Publisher('/gazebo/set_model_state', ModelState, queue_size=1)
+        # pub.publish(state)
+        # rospy.sleep(0.05)
+
+        pub = rospy.Publisher("/gazebo/set_model_state", ModelState, queue_size=1)
+        timeout = rospy.Duration(10.0); start = rospy.Time.now()
+        while not rospy.is_shutdown():
+            m = ModelState(); m.model_name = self.namespace
+            m.pose.position.x, m.pose.position.y, m.pose.position.z = reset_position
+            m.pose.orientation.w = 1.0
+            m.twist.linear.x, m.twist.linear.y, m.twist.linear.z = np.random.uniform(-0.2, 0.2, 3)
+            m.twist.angular.x, m.twist.angular.y, m.twist.angular.z = np.random.uniform(-0.1, 0.1, 3)
+            pub.publish(m)
+            with self.state_lock:
+                if np.linalg.norm(self.current_state[0:3] - reset_position) < 0.1 or rospy.Time.now() - start > timeout:
+                    break
+
 
 
     def _publish_action(self, action):
@@ -509,8 +548,8 @@ class QuadrotorEnv(gym.Env):
             # r_step +
             self.s_pos * r_position  +
             self.s_target  * r_target +
-            # self.s_smooth * r_smooth +
-            # self.s_angle_diff * angle_diff+
+            self.s_smooth * r_smooth +
+            self.s_angle_diff * angle_diff+
             # self.s_smooth * r_smooth +
             # self.s_angle_diff * angle_diff +
 
@@ -520,6 +559,10 @@ class QuadrotorEnv(gym.Env):
             self.s_crash * r_crash 
             # + r_energy
         )
+        # print("self.s_pos * r_position: ", self.s_pos * r_position)
+        # print
+        # print("self.s_target * r_target: ", self.s_target * r_target)
+        # print("self.s_smooth * r_smooth: ", self.s_smooth * r_smooth)
 
 
         rot_mat = self.quaternion_to_rot_matrix(current_state[3:7])
@@ -572,6 +615,8 @@ class QuadrotorEnv(gym.Env):
     def _check_done(self, curr_state):
         pos_error = np.linalg.norm(curr_state[0:3] - self.desired_state[0:3])
         if pos_error > self.max_position_error or curr_state[2]<0.3:
+            # print("pos_error: ", pos_error)
+            # print("curr_state[2]: ", curr_state[2])
             return True
         
         # qw = curr_state[3]

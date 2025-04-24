@@ -234,7 +234,7 @@ from stable_baselines3.commons.vec_env import DummyVecEnv, VecEnv
 
 current_date = datetime.datetime.now().strftime("%Y%m%d")
 task_name = "tracking_standard_ppo"
-file_dir = f"/home/hello/catkin_ws_rotors/rl_trajectory_run/result/task/hovering/{task_name}/result/{current_date}"
+file_dir = f"/home/hello/catkin_ws_rotors/rl_trajectory_run/result/task/tracking/{task_name}/result/{current_date}"
 checkpoints_file_dir = file_dir+"/sb3_checkpoints/"
 tensorboard_file_dir = file_dir+"/sb3_tensorboard/"
 reward_file_dir = file_dir+"/reward/"
