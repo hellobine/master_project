@@ -2,15 +2,16 @@
 import os
 import re
 import rospy
-from hover_stable_baseline3_env import QuadrotorEnv
-from hover_stable_baseline3_train import PPOTrainer
+from stable_baseline3_env import QuadrotorEnv
+from stable_baseline3_train import PPOTrainer
 from stable_baselines3.commons.vec_env import SubprocVecEnv
 
 import os
 import datetime
 
 current_date = datetime.datetime.now().strftime("%Y%m%d")
-file_dir = f"/home/hello/catkin_ws_rotors/rl_trajectory_run/result/task/hovering/result/{current_date}"
+task_name = "hovering_standard_ppo"
+file_dir = f"/home/hello/catkin_ws_rotors/rl_trajectory_run/result/task/hovering/{task_name}/result/{current_date}"
 checkpoints_file_dir = file_dir+"/sb3_checkpoints/"
 
 def get_latest_checkpoint(checkpoint_dir):
@@ -47,7 +48,7 @@ if __name__ == "__main__":
         env=vec_env,
         total_timesteps=1_000_000_00,
         batch_size= 128*num_envs,#256
-        n_steps=128 #256
+        n_steps = 128 #256
     )
     
     checkpoint_path = get_latest_checkpoint(checkpoints_file_dir)
@@ -74,7 +75,7 @@ if __name__ == "__main__":
             action, _ = trainer.model.predict(obs, deterministic=True)
             obs, reward, terminated, truncated, info = env.step(action)
             # print("reward: ", reward)
-            # if truncated:
-            #     rospy.loginfo("Episode finished, resetting environment.")
-            #     obs,_ = env.reset()
+            if truncated:
+                rospy.loginfo("Episode finished, resetting environment.")
+                obs,_ = env.reset()
             rate.sleep()

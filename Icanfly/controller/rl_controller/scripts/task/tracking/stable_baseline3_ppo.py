@@ -400,7 +400,7 @@ class PPO(OnPolicyAlgorithm):
         device: Union[th.device, str] = "auto",
         _init_setup_model: bool = True,
         ewc_lambda: float = 0.0,
-        l2_lambda: float = 0.0,
+        l2_lambda = 0.0,
         ewc_update_interval: int = -1,
     ):
         super().__init__(

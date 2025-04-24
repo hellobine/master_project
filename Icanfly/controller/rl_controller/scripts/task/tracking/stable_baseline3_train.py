@@ -225,13 +225,16 @@ import matplotlib.pyplot as plt
 from torch import nn 
 from torch.utils.tensorboard import SummaryWriter
 import csv 
+import re
+from pathlib import Path
 import gymnasium as gym
 from stable_baseline3_ppo import PPO
 from stable_baselines3.commons.callbacks import BaseCallback
 from stable_baselines3.commons.vec_env import DummyVecEnv, VecEnv
 
 current_date = datetime.datetime.now().strftime("%Y%m%d")
-file_dir = f"/home/hello/catkin_ws_rotors/rl_trajectory_run/result/task/tracking/result/{current_date}"
+task_name = "tracking_standard_ppo"
+file_dir = f"/home/hello/catkin_ws_rotors/rl_trajectory_run/result/task/hovering/{task_name}/result/{current_date}"
 checkpoints_file_dir = file_dir+"/sb3_checkpoints/"
 tensorboard_file_dir = file_dir+"/sb3_tensorboard/"
 reward_file_dir = file_dir+"/reward/"
@@ -245,6 +248,27 @@ if not os.path.exists(checkpoints_file_dir):
 if not os.path.exists(tensorboard_file_dir):
     os.makedirs(tensorboard_file_dir)
 
+
+
+def get_next_run_dir(base_dir: str = "runs",
+                     prefix: str = "exp_",
+                     ) -> str:
+    """
+    在 base_dir 下找所有形如 prefix<number> 的子目录，
+    取最大的数字 +1，返回新的 run 目录路径。
+    """
+    base = Path(base_dir)
+    base.mkdir(exist_ok=True)
+
+    pattern = re.compile(rf"^{re.escape(prefix)}(\d+)$")
+    nums = []
+    for d in base.iterdir():
+        if d.is_dir():
+            m = pattern.match(d.name)
+            if m:
+                nums.append(int(m.group(1)))
+    next_id = max(nums) + 1 if nums else 1
+    return str(base / f"{prefix}{next_id}")
 
 
 class GymnasiumWrapper(gym.Wrapper):
@@ -292,6 +316,7 @@ class PPOTrainer:
             # gae_lambda=gae_lambda,
             clip_range=clip_range,
             # ent_coef=ent_coef,
+            l2_lambda  = 0.0,
             verbose=1,
             seed=42,
             device="cuda:0",  # 根据需求设置设备
@@ -307,7 +332,10 @@ class PPOTrainer:
         
         self.episode_rewards = []
         self.steps = []
-        self.writer = SummaryWriter(log_dir=tensorboard_file_dir)
+        
+        log_dir = get_next_run_dir(base_dir=tensorboard_file_dir, prefix="episode_")
+        self.writer = SummaryWriter(log_dir=log_dir)
+        
         
         self.callback = SB3CustomCallback(
             save_freq=10000,
@@ -368,13 +396,14 @@ class SB3CustomCallback(BaseCallback):
         if infos:
             # print("infos:", infos)  # 调试用，查看infos内容
             for info in infos:
-                if "reward" in info:
-                    self.writer.add_scalar("Reward/Step", info["reward"], self.num_timesteps)
+                # if "reward" in info:
+                    # self.writer.add_scalar("Reward/Step", info["reward"], self.num_timesteps)
                 if "episode" in info:
                     # print("self.num_timesteps: ", self.num_timesteps)
                     self.num_timesteps += info["episode"]["l"]
                     self.episode_rewards.append(info["episode"]["r"])
                     self.steps.append(self.num_timesteps)
+                    self.writer.add_scalar("Reward/episode", info["episode"]["r"], self.num_timesteps)
          
         # print("self.num_timesteps % self.save_freq: ", self.num_timesteps % self.save_freq)
         if self.num_timesteps % self.save_freq == 0:

@@ -159,7 +159,8 @@ import os
 import datetime
 
 current_date = datetime.datetime.now().strftime("%Y%m%d")
-file_dir = f"/home/hello/catkin_ws_rotors/rl_trajectory_run/result/task/tracking/result/{current_date}"
+task_name = "tracking_standard_ppo"
+file_dir = f"/home/hello/catkin_ws_rotors/rl_trajectory_run/result/task/hovering/{task_name}/result/{current_date}"
 checkpoints_file_dir = file_dir+"/sb3_checkpoints/"
 
 def get_latest_checkpoint(checkpoint_dir):

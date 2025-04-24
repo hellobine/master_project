@@ -869,7 +869,7 @@ class QuadrotorEnv(gym.Env):
         self.control_dt = 1.0 / self.control_hz
         self.rate = rospy.Rate(self.control_hz)
 
-        # self._odom_lock = Lock()  # 使用 Lock 来保护对共享资源的访问
+        self._odom_lock = Lock()  # 使用 Lock 来保护对共享资源的访问
         self.odom_sub = rospy.Subscriber(
             f"/{namespace}/ground_truth/odometry", Odometry, self._odom_cb)
 
@@ -908,7 +908,7 @@ class QuadrotorEnv(gym.Env):
 
     # -------------------------------------------------- ROS callbacks
     def _odom_cb(self, msg: Odometry):
-        # with self._odom_lock:
+        with self._odom_lock:
             pos = [msg.pose.pose.position.x, msg.pose.pose.position.y, msg.pose.pose.position.z]
             ori = [msg.pose.pose.orientation.w, msg.pose.pose.orientation.x,
                    msg.pose.pose.orientation.y, msg.pose.pose.orientation.z]
@@ -974,8 +974,8 @@ class QuadrotorEnv(gym.Env):
         ], np.float32)
         self._reset_pose(reset_pos)
 
-        # with self._odom_lock:
-        state = self.current_state.copy()
+        with self._odom_lock:
+            state = self.current_state.copy()
         obs, _ = self._build_obs_and_reward(state, self.prev_action)
         return obs, {}
 
